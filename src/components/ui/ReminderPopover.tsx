@@ -26,8 +26,12 @@ type TimeSlot = {
 };
 
 // 30-min slots (fewer options, less overwhelming)
-const TIME_SLOTS: TimeSlot[] = Array.from({ length: 24 * 2 }, (_, i) => {
-  const totalMinutes = i * 30;
+const START_MINUTES = 9 * 60; // 9:00 AM
+const SLOT_STEP = 30;
+const TOTAL_SLOTS = (24 * 60 - START_MINUTES) / SLOT_STEP; // from 9:00 AM to 11:30 PM
+
+const TIME_SLOTS: TimeSlot[] = Array.from({ length: TOTAL_SLOTS }, (_, i) => {
+  const totalMinutes = START_MINUTES + i * SLOT_STEP;
   const hour24 = Math.floor(totalMinutes / 60);
   const minute = totalMinutes % 60;
   const isPm = hour24 >= 12;
@@ -152,6 +156,28 @@ export function ReminderPopover({
   const isNextWeek = (day: Date | undefined) =>
     !!day && isSameDay(day, addDays(new Date(), 7));
 
+  const handleDateChange = (day: Date | undefined) => {
+    if (!day) return;
+
+    const normalized = startOfDay(day);
+    setSelectedDay(normalized);
+
+    const isToday = normalized.toDateString() === startOfDay(new Date()).toDateString();
+
+    if (isToday) {
+      const nextSlot = roundUpToNextHalfHour(new Date());
+      const parts = to12HourParts(nextSlot);
+
+      setHour(parts.hour);
+      setMinute(parts.minute);
+      setAmpm(parts.ampm);
+    } else {
+      setHour("9");
+      setMinute("00");
+      setAmpm("AM");
+    }
+  }
+
   return (
     <Popover.Root open={open} onOpenChange={handleOpenChange}>
       <Popover.Trigger asChild>
@@ -162,13 +188,14 @@ export function ReminderPopover({
         >
           {reminderAt ? (
             <>
+              <CalendarDays size={12} />
               <span className="truncate">
                 {variant === "compact"
                   ? format(new Date(reminderAt), "MMM d, h:mm a")
                   : `Remind to read · ${format(
-                      new Date(reminderAt),
-                      "MMM d, h:mm a"
-                    )}`}
+                    new Date(reminderAt),
+                    "MMM d, h:mm a"
+                  )}`}
               </span>
               <div
                 role="button"
@@ -205,22 +232,20 @@ export function ReminderPopover({
                 <button
                   type="button"
                   onClick={() => handleQuickDate(1)}
-                  className={`px-3 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${
-                    isTomorrow(selectedDay)
+                  className={`px-3 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${isTomorrow(selectedDay)
                       ? "bg-accent text-accent-foreground"
                       : "bg-secondary text-secondary-foreground hover:bg-accent"
-                  }`}
+                    }`}
                 >
                   Tomorrow
                 </button>
                 <button
                   type="button"
                   onClick={() => handleQuickDate(7)}
-                  className={`px-3 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${
-                    isNextWeek(selectedDay)
+                  className={`px-3 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${isNextWeek(selectedDay)
                       ? "bg-accent text-accent-foreground"
                       : "bg-secondary text-secondary-foreground hover:bg-accent"
-                  }`}
+                    }`}
                 >
                   Next week
                 </button>
@@ -234,35 +259,28 @@ export function ReminderPopover({
               {/* Calendar side */}
               <div className="pr-2">
                 <DayPicker
-                  className="reminder-calendar"
                   mode="single"
                   selected={selectedDay}
-                  onSelect={(day) => {
-                    if (!day) return;
-                    setSelectedDay(startOfDay(day));
-                  }}
+                  onSelect={handleDateChange}
                   disabled={{ before: startOfDay(new Date()) }}
-                  showOutsideDays
-                  month={selectedDay ?? new Date()}
+                  showOutsideDays={true}
+                  defaultMonth={selectedDay ?? new Date()}
                   classNames={{
                     months: "flex flex-col",
                     month: "space-y-2",
                     caption: "flex items-center justify-between px-1 pt-1 relative",
                     caption_label: "text-sm font-semibold text-muted-foreground",
-
                     nav: "flex items-center gap-1",
                     nav_button:
-                      "h-4 w-4 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors",
+                      "h-5 w-5 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors",
                     nav_button_previous: "absolute right-8",
                     nav_button_next: "absolute right-1",
                     table: "w-full border-collapse",
                     head_cell: "w-8 h-7 text-[11px] font-medium text-muted-foreground text-center",
-
                     day: "h-8 w-8 p-0 rounded-full text-sm font-normal hover:bg-accent transition-colors",
                     day_selected:
                       "!bg-black !text-white rounded-full hover:!bg-black focus:!bg-black active:!bg-black active:!ring-bg-lback",
-                    day_today:
-                      "rounded-full ring-1 ring-primary/30 font-medium aria-selected:!text-white aria-selected:!bg-black",
+                    day_today: "rounded-full ring-1 ring-primary/30 font-medium aria-selected:!text-white aria-selected:!bg-black",
                     day_outside: "text-muted-foreground/35",
                     day_disabled: "text-muted-foreground/35 pointer-events-none",
                   }}
@@ -288,13 +306,12 @@ export function ReminderPopover({
                         type="button"
                         onClick={() => handleTimeSlotClick(slot)}
                         disabled={disabledSlot}
-                        className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
-                          selected
+                        className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${selected
                             ? "bg-accent text-accent-foreground font-medium"
                             : disabledSlot
-                            ? "text-muted-foreground/40 cursor-not-allowed"
-                            : "text-foreground hover:bg-accent/60"
-                        }`}
+                              ? "text-muted-foreground/40 cursor-not-allowed"
+                              : "text-foreground hover:bg-accent/60"
+                          }`}
                       >
                         {slot.label}
                       </button>
@@ -341,11 +358,10 @@ export function ReminderPopover({
                 type="button"
                 onClick={handleSetReminder}
                 disabled={!selectedDay || isInvalidPastSelection}
-                className={`text-xs px-3 py-1.5 rounded transition-colors ${
-                  !selectedDay || isInvalidPastSelection
+                className={`text-xs px-3 py-1.5 rounded transition-colors ${!selectedDay || isInvalidPastSelection
                     ? "bg-primary text-primary-foreground opacity-50 pointer-events-none"
                     : "bg-primary text-primary-foreground hover:bg-primary/90"
-                }`}
+                  }`}
               >
                 Set reminder
               </button>
