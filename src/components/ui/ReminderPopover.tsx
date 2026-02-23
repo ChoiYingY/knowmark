@@ -1,11 +1,15 @@
 import * as Popover from "@radix-ui/react-popover";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
-import { format, addDays } from "date-fns";
-import { CalendarDays, X } from "lucide-react";
-import { useState } from "react";
-
-// ─── Reminder Popover Component ───────────────────────────────────────────────
+import { format, addDays, startOfDay, isSameDay } from "date-fns";
+import { CalendarDays, X, Info } from "lucide-react";
+import { useState, type MouseEvent } from "react";
+import { toast } from "sonner";
+import {
+  Meridiem,
+  buildDateFromParts, formatSlotLabel,
+  isPastManualSelection, roundUpToNextHalfHour, to12HourParts
+} from "@/utils/timeUtil";
 
 interface ReminderPopoverProps {
   reminderAt: number | null;
@@ -14,102 +18,159 @@ interface ReminderPopoverProps {
   variant?: "compact" | "detailed";
 }
 
-export function ReminderPopover({ reminderAt, onChange, disabled, variant = "detailed" }: ReminderPopoverProps) {
+type TimeSlot = {
+  hour: string;
+  minute: string;
+  ampm: Meridiem;
+  label: string;
+};
+
+// 30-min slots (fewer options, less overwhelming)
+const TIME_SLOTS: TimeSlot[] = Array.from({ length: 24 * 2 }, (_, i) => {
+  const totalMinutes = i * 30;
+  const hour24 = Math.floor(totalMinutes / 60);
+  const minute = totalMinutes % 60;
+  const isPm = hour24 >= 12;
+  let h12 = hour24 % 12;
+  if (h12 === 0) h12 = 12;
+
+  return {
+    hour: String(h12),
+    minute: String(minute).padStart(2, "0"),
+    ampm: isPm ? "PM" : "AM",
+    label: formatSlotLabel(hour24, minute),
+  };
+});
+
+export function ReminderPopover({
+  reminderAt,
+  onChange,
+  disabled,
+  variant = "detailed",
+}: ReminderPopoverProps) {
   const [open, setOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | undefined>();
   const [hour, setHour] = useState("9");
   const [minute, setMinute] = useState("00");
-  const [ampm, setAmpm] = useState<"AM" | "PM">("AM");
+  const [ampm, setAmpm] = useState<Meridiem>("AM");
 
-  // Sync state when opening
+  const isInvalidPastSelection = isPastManualSelection(
+    selectedDay,
+    hour,
+    minute,
+    ampm
+  );
+
+  const isTodaySelected = selectedDay ? isSameDay(selectedDay, new Date()) : false;
+
+  const isSlotSelected = (slot: TimeSlot) =>
+    hour === slot.hour && minute === slot.minute && ampm === slot.ampm;
+
+  // moved ABOVE visibleTimeSlots usage (fixes runtime error)
+  const isSlotInPast = (slot: TimeSlot) => {
+    if (!selectedDay || !isTodaySelected) return false;
+    const d = buildDateFromParts(selectedDay, slot.hour, slot.minute, slot.ampm);
+    return d.getTime() < Date.now();
+  };
+
+  const visibleTimeSlots = TIME_SLOTS.filter((slot) => !isSlotInPast(slot));
+
+  const handleTimeSlotClick = (slot: TimeSlot) => {
+    if (isSlotInPast(slot)) return;
+    setHour(slot.hour);
+    setMinute(slot.minute);
+    setAmpm(slot.ampm);
+  };
+
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen) {
       if (reminderAt) {
-        const d = new Date(reminderAt);
-        setSelectedDay(d);
-        let h = d.getHours();
-        const m = d.getMinutes();
-        const isPm = h >= 12;
-        
-        if (h === 0) h = 12;
-        else if (h > 12) h -= 12;
+        // Existing reminder: open with that exact date/time selected
+        const reminderDate = new Date(reminderAt);
+        setSelectedDay(startOfDay(reminderDate));
 
-        setHour(h.toString());
-        setMinute(m.toString().padStart(2, "0"));
-        setAmpm(isPm ? "PM" : "AM");
+        const parts = to12HourParts(reminderDate);
+        setHour(parts.hour);
+        setMinute(parts.minute);
+        setAmpm(parts.ampm);
       } else {
-        // Defaults if fresh open
-        setSelectedDay(undefined);
-        setHour("9");
-        setMinute("00");
-        setAmpm("AM");
+        // New reminder: default to today + next available 30-min slot
+        const nextSlot = roundUpToNextHalfHour(new Date());
+
+        setSelectedDay(startOfDay(nextSlot));
+
+        const parts = to12HourParts(nextSlot);
+        setHour(parts.hour);
+        setMinute(parts.minute);
+        setAmpm(parts.ampm);
       }
     }
+
     setOpen(newOpen);
   };
 
   const handleSetReminder = () => {
     if (!selectedDay) return;
 
-    const h24 = ampm === "AM"
-      ? (parseInt(hour) % 12)
-      : (parseInt(hour) % 12) + 12;
-    const d = new Date(selectedDay);
-    d.setHours(h24, parseInt(minute), 0, 0);
-    
-    onChange(d.getTime());
+    const selected = buildDateFromParts(selectedDay, hour, minute, ampm);
+
+    if (selected.getTime() < Date.now()) {
+      toast.error("That time has already passed. Please pick a later time.", {
+        id: "invalid-reminder-time",
+      });
+      return;
+    }
+
+    onChange(selected.getTime());
     setOpen(false);
   };
 
-  const handleClear = (e: React.MouseEvent) => {
+  const handleClear = (e: MouseEvent) => {
     e.stopPropagation();
     onChange(null);
     setOpen(false);
   };
 
   const handleQuickDate = (daysToAdd: number) => {
-    const newDate = addDays(new Date(), daysToAdd);
-    setSelectedDay(newDate);
+    // Immediate set: Tomorrow / Next week at 9:00 AM
+    const base = addDays(new Date(), daysToAdd);
+    const d = startOfDay(base);
+    d.setHours(9, 0, 0, 0);
 
+    setSelectedDay(startOfDay(d));
     setHour("9");
     setMinute("00");
     setAmpm("AM");
-
-    const h24 = ampm === "AM" ? parseInt(hour) % 12 : (parseInt(hour) % 12) + 12;
-    const d = new Date(newDate);
-    d.setHours(h24, parseInt(minute), 0, 0);
 
     onChange(d.getTime());
     setOpen(false);
   };
 
-  const isTomorrow = (day: Date | undefined) => {
-    if (!day) return false;
-    return format(day, 'yyyy-MM-dd') === format(addDays(new Date(), 1), 'yyyy-MM-dd');
-  };
+  const isTomorrow = (day: Date | undefined) =>
+    !!day && isSameDay(day, addDays(new Date(), 1));
 
-  const isNextWeek = (day: Date | undefined) => {
-    if (!day) return false;
-    return format(day, 'yyyy-MM-dd') === format(addDays(new Date(), 7), 'yyyy-MM-dd');
-  };
+  const isNextWeek = (day: Date | undefined) =>
+    !!day && isSameDay(day, addDays(new Date(), 7));
 
   return (
     <Popover.Root open={open} onOpenChange={handleOpenChange}>
       <Popover.Trigger asChild>
         <button
-          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
+          type="button"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
           disabled={disabled}
         >
           {reminderAt ? (
             <>
               <span className="truncate">
-                {
-                  variant === "compact" ?
-                    format(new Date(reminderAt), "MMM d, h:mm a") :
-                    `Remind to read · ${format(new Date(reminderAt), "MMM d, h:mm a")}`
-                }
+                {variant === "compact"
+                  ? format(new Date(reminderAt), "MMM d, h:mm a")
+                  : `Remind to read · ${format(
+                      new Date(reminderAt),
+                      "MMM d, h:mm a"
+                    )}`}
               </span>
-              <div 
+              <div
                 role="button"
                 onClick={handleClear}
                 className="ml-0.5 rounded-full p-0.5 hover:bg-background/50"
@@ -120,129 +181,175 @@ export function ReminderPopover({ reminderAt, onChange, disabled, variant = "det
           ) : (
             <>
               <CalendarDays size={12} />
-              <span>{ variant === "compact" ? "Add reminder" : "Remind me" }</span>
+              <span>{variant === "compact" ? "Add reminder" : "Remind me"}</span>
             </>
           )}
         </button>
       </Popover.Trigger>
-      
+
       <Popover.Portal>
-        <Popover.Content 
-          className="z-50 w-80 rounded-xl bg-card shadow-lg p-4 space-y-3"
-          sideOffset={8} 
-          align="start"
+        <Popover.Content
+          className="z-50 w-[430px] max-w-[calc(100vw-16px)] rounded-xl border border-border bg-card shadow-lg"
+          sideOffset={8}
+          align={variant === "compact" ? "end" : "start"}
+          collisionPadding={8}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          {/* Quick actions */}
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Quick reminders
-            </p>
-            <div className="flex gap-2">
+          <div className="p-4 space-y-3">
+            {/* Quick actions */}
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Quick reminders
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleQuickDate(1)}
+                  className={`px-3 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${
+                    isTomorrow(selectedDay)
+                      ? "bg-accent text-accent-foreground"
+                      : "bg-secondary text-secondary-foreground hover:bg-accent"
+                  }`}
+                >
+                  Tomorrow
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickDate(7)}
+                  className={`px-3 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${
+                    isNextWeek(selectedDay)
+                      ? "bg-accent text-accent-foreground"
+                      : "bg-secondary text-secondary-foreground hover:bg-accent"
+                  }`}
+                >
+                  Next week
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-border" />
+
+            {/* Calendar + Time Rail */}
+            <div className="grid grid-cols-[1fr_112px] rounded-lg overflow-hidden">
+              {/* Calendar side */}
+              <div className="pr-2">
+                <DayPicker
+                  className="reminder-calendar"
+                  mode="single"
+                  selected={selectedDay}
+                  onSelect={(day) => {
+                    if (!day) return;
+                    setSelectedDay(startOfDay(day));
+                  }}
+                  disabled={{ before: startOfDay(new Date()) }}
+                  showOutsideDays
+                  month={selectedDay ?? new Date()}
+                  classNames={{
+                    months: "flex flex-col",
+                    month: "space-y-2",
+                    caption: "flex items-center justify-between px-1 pt-1 relative",
+                    caption_label: "text-sm font-semibold text-muted-foreground",
+
+                    nav: "flex items-center gap-1",
+                    nav_button:
+                      "h-4 w-4 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors",
+                    nav_button_previous: "absolute right-8",
+                    nav_button_next: "absolute right-1",
+                    table: "w-full border-collapse",
+                    head_cell: "w-8 h-7 text-[11px] font-medium text-muted-foreground text-center",
+
+                    day: "h-8 w-8 p-0 rounded-full text-sm font-normal hover:bg-accent transition-colors",
+                    day_selected:
+                      "!bg-black !text-white rounded-full hover:!bg-black focus:!bg-black active:!bg-black active:!ring-bg-lback",
+                    day_today:
+                      "rounded-full ring-1 ring-primary/30 font-medium aria-selected:!text-white aria-selected:!bg-black",
+                    day_outside: "text-muted-foreground/35",
+                    day_disabled: "text-muted-foreground/35 pointer-events-none",
+                  }}
+                />
+              </div>
+
+              {/* Time rail side */}
+              <div className="border-l border-border bg-muted/20">
+                <div className="h-8 px-2 flex items-center border-b border-border">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Time
+                  </span>
+                </div>
+
+                <div className="h-[220px] overflow-y-auto py-1">
+                  {visibleTimeSlots.map((slot) => {
+                    const selected = isSlotSelected(slot);
+                    const disabledSlot = isSlotInPast(slot);
+
+                    return (
+                      <button
+                        key={`${slot.hour}:${slot.minute}-${slot.ampm}`}
+                        type="button"
+                        onClick={() => handleTimeSlotClick(slot)}
+                        disabled={disabledSlot}
+                        className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
+                          selected
+                            ? "bg-accent text-accent-foreground font-medium"
+                            : disabledSlot
+                            ? "text-muted-foreground/40 cursor-not-allowed"
+                            : "text-foreground hover:bg-accent/60"
+                        }`}
+                      >
+                        {slot.label}
+                      </button>
+                    );
+                  })}
+
+                  {visibleTimeSlots.length === 0 && (
+                    <div className="px-3 py-2 text-[11px] text-muted-foreground">
+                      No times left today
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Inline validation hint */}
+            {isInvalidPastSelection && (
+              <p className="flex items-start justify-center gap-1.5 text-[11px] text-muted-foreground">
+                <Info className="mt-[1px] h-3 w-3 shrink-0" />
+                <span className="text-center">
+                  That time has already passed today.
+                  <br />
+                  Please choose a later time.
+                </span>
+              </p>
+            )}
+
+            <div className="border-t border-border" />
+
+            {/* Footer row */}
+            <div className="flex items-center justify-between">
               <button
-                onClick={() => handleQuickDate(1)}
-                className={`flex-1 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${
-                  isTomorrow(selectedDay) 
-                    ? "bg-accent text-accent-foreground" 
-                    : "bg-secondary text-secondary-foreground hover:bg-accent"
-                }`}
+                type="button"
+                onClick={() => {
+                  onChange(null);
+                  setOpen(false);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1"
               >
-                Tomorrow
+                Clear
               </button>
+
               <button
-                onClick={() => handleQuickDate(7)}
-                className={`flex-1 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${
-                  isNextWeek(selectedDay)
-                    ? "bg-accent text-accent-foreground"
-                    : "bg-secondary text-secondary-foreground hover:bg-accent"
+                type="button"
+                onClick={handleSetReminder}
+                disabled={!selectedDay || isInvalidPastSelection}
+                className={`text-xs px-3 py-1.5 rounded transition-colors ${
+                  !selectedDay || isInvalidPastSelection
+                    ? "bg-primary text-primary-foreground opacity-50 pointer-events-none"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90"
                 }`}
               >
-                Next week
+                Set reminder
               </button>
             </div>
-          </div>
-
-          {/* Calendar */}          
-          <div className="flex items-center justify-center pt-2 border-t border-border">
-            <DayPicker
-              mode="single"
-              selected={selectedDay}
-              onSelect={setSelectedDay}
-              disabled={{ before: new Date() }}
-              showOutsideDays={false}
-              classNames={{
-                months: "flex flex-col",
-                month: "space-y-2",
-                caption: "flex justify-between px-1 pt-1 relative items-center",
-                caption_label: "text-sm font-semibold text-foreground",
-                nav: "space-x-1 flex items-center",
-                nav_button: "h-6 w-6 bg-transparent p-0 opacity-60 hover:opacity-100 flex items-center justify-center rounded hover:bg-accent",
-                nav_button_previous: "absolute left-1",
-                nav_button_next: "absolute right-1",
-                table: "w-full border-collapse space-y-1",
-                head_row: "flex",
-                head_cell: "text-muted-foreground rounded-md w-8 font-normal text-[0.7rem] text-center",
-                row: "flex w-full mt-1",
-                cell: "h-8 w-8 text-center text-sm p-0 relative",
-                day: "h-8 w-8 p-0 font-normal text-sm rounded-md hover:bg-accent hover:text-accent-foreground transition-colors",
-                day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                day_today: "ring-1 ring-primary/30 font-medium",
-                day_outside: "opacity-30",
-                day_disabled: "opacity-30 pointer-events-none",
-              }}
-            />
-          </div>
-
-          {/* Time Selection */}
-          <div className="flex items-center justify-center gap-1.5 pt-2 border-t border-border">
-            <span className="text-xs text-muted-foreground mr-1">Time</span>
-            <select
-              value={hour}
-              onChange={(e) => setHour(e.target.value)}
-              className="text-xs border border-border rounded px-1 py-0.5 bg-background h-7 min-w-[3rem]"
-            >
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
-                <option key={h} value={h}>{h}</option>
-              ))}
-            </select>
-            <span className="text-muted-foreground">:</span>
-            <select
-              value={minute}
-              onChange={(e) => setMinute(e.target.value)}
-              className="text-xs border border-border rounded px-1 py-0.5 bg-background h-7 min-w-[3rem]"
-            >
-              {["00", "15", "30", "45"].map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-            <select
-              value={ampm}
-              onChange={(e) => setAmpm(e.target.value as "AM" | "PM")}
-              className="text-xs border border-border rounded px-1 py-0.5 bg-background h-7 min-w-[3.5rem]"
-            >
-              <option value="AM">AM</option>
-              <option value="PM">PM</option>
-            </select>
-          </div>
-
-          {/* Footer row */}
-          <div className="flex items-center justify-between pt-2 border-t border-border">
-            <button
-              onClick={() => {
-                onChange(null);
-                setOpen(false);
-              }}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1"
-            >
-              Clear
-            </button>
-            <button
-              onClick={handleSetReminder}
-              disabled={!selectedDay}
-              className="text-xs bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded transition-colors disabled:opacity-50 disabled:pointer-events-none"
-            >
-              Set reminder
-            </button>
           </div>
         </Popover.Content>
       </Popover.Portal>

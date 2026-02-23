@@ -10,8 +10,8 @@ import {
   createBookmarkMutation,
 } from "@/services/bookmarkService";
 import type { BookmarkPreview } from "@/types/bookmark";
-import ReminderPopover from "./ReminderPopover";
-// import { useAutoAnonymousAuth } from "@/hooks/useAutoAnonymousAuth";
+import { ReminderPopover } from "./ReminderPopover";
+import { useAutoAnonymousAuth } from "@/hooks/useAutoAnonymousAuth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,7 +28,7 @@ const TOAST_ID = "save-link";
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SaveLink() {
-  // useAutoAnonymousAuth();
+  useAutoAnonymousAuth();
 
   const navigate = useNavigate();
   const fetchTitle = useAction(fetchPageTitleAction);
