@@ -2,6 +2,7 @@ import { useQuery, useMutation } from "convex/react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { BookOpen, Search, X } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -34,8 +35,6 @@ export default function Library() {
   const isEmpty = bookmarks !== undefined && bookmarks.length === 0;
   const isNoResults = !isEmpty && filtered.length === 0;
 
-  console.log("bookmarks", bookmarks);
-
   return (
     <AppShell>
       <div className="space-y-6">
@@ -52,7 +51,7 @@ export default function Library() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        
+
         <hr className="border-t border-border -mt-6 mb-6" />
 
         {/* Search + filter bar */}
@@ -74,7 +73,7 @@ export default function Library() {
                 </button>
               )}
             </div>
-            
+
             {/* Category filter */}
             <select
               value={categoryFilter}
@@ -108,8 +107,8 @@ export default function Library() {
         ) : isNoResults ? (
           <div className="text-center py-12">
             <p className="text-sm text-muted-foreground">No results found for your search.</p>
-            <Button 
-              variant="link" 
+            <Button
+              variant="link"
               onClick={() => { setSearchQuery(""); setCategoryFilter("All"); }}
               className="mt-2"
             >
@@ -132,7 +131,7 @@ export default function Library() {
                   <tr key={bookmark._id} className="border-b border-border/50 hover:bg-muted/30 transition-colors group">
                     <td className="py-3 pr-4">
                       <a href={bookmark.url} target="_blank" rel="noopener noreferrer"
-                         className="font-medium text-foreground hover:underline line-clamp-1">
+                        className="font-medium text-foreground hover:underline line-clamp-1">
                         {bookmark.title}
                       </a>
                       <p className="text-xs text-muted-foreground mt-0.5 truncate">{bookmark.url}</p>
@@ -149,8 +148,12 @@ export default function Library() {
                       <ReminderPopover
                         variant="compact"
                         reminderAt={bookmark.reminderAt}
-                        onChange={(value) => {
-                          updateReminder({ bookmarkId: bookmark._id, reminderAt: value });
+                        onChange={async (value) => {
+                          try {
+                            await updateReminder({ bookmarkId: bookmark._id, reminderAt: value });
+                          } catch {
+                            toast.error("Failed to update reminder. Please try again.", { id: "library-reminder" });
+                          }
                         }}
                       />
                     </td>

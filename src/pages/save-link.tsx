@@ -14,18 +14,14 @@ import type { BookmarkPreview } from "@/types/bookmark";
 import { useAutoAnonymousAuth } from "@/hooks/useAutoAnonymousAuth";
 import { ReminderPopover } from "@/components/ui/ReminderPopover";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 type PreviewState =
   | { status: "idle" }
-  | { status: "loading" }
+  | { status: "loading", rawUrl: string }
   | { status: "valid"; data: BookmarkPreview }
   | { status: "invalid" };
 
 const MOCK_SUMMARY = "A useful resource saved for later reading.";
 const TOAST_ID = "save-link";
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SaveLink() {
   useAutoAnonymousAuth();
@@ -45,8 +41,6 @@ export default function SaveLink() {
   const isPreviewing = preview.status === "loading";
   const isPreviewValid = preview.status === "valid";
 
-  // ─── Handlers ───────────────────────────────────────────────────────────────
-
   async function handlePreview() {
     const raw = inputValue.trim();
     if (!raw) return;
@@ -57,7 +51,7 @@ export default function SaveLink() {
       return;
     }
 
-    setPreview({ status: "loading" });
+    setPreview({ status: "loading", rawUrl: raw });
 
     try {
       const normalizedUrl = normalizeUrl(raw);
@@ -195,9 +189,22 @@ export default function SaveLink() {
         )}
 
         {preview.status === "loading" && (
-          <div className="min-h-[120px] border border-dashed border-border rounded-lg flex items-center justify-center gap-2">
-            <span className="inline-block h-4 w-4 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />
-            <p className="text-sm text-muted-foreground">Fetching link…</p>
+          <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+            <div className="flex items-center gap-3">
+              {/* small subtle spinner */}
+              <span
+                aria-hidden="true"
+                className="inline-block h-4 w-4 rounded-full border-2 border-muted-foreground/30 border-t-primary animate-spin"
+              />
+
+              {/* status text */}
+              <p className="min-w-0 text-sm text-muted-foreground">
+                <span className="font-medium text-muted-foreground/80">Processing </span>
+                <span className="truncate inline-block max-w-[420px] align-bottom">
+                  {preview.rawUrl ?? "link..."}
+                </span>
+              </p>
+            </div>
           </div>
         )}
 
@@ -213,44 +220,47 @@ export default function SaveLink() {
         )}
 
         {preview.status === "valid" && (
-          <div className="relative rounded-lg border border-border bg-card px-5 py-4 space-y-3">
+          <div className="relative rounded-lg border border-border bg-card px-5 py-4 space-y-2.5">
             <button
-              onClick={() => { setPreview({ status: "idle" }); setReminderAt(null); }}
+              onClick={() => {
+                setPreview({ status: "idle" });
+                setReminderAt(null);
+              }}
               className="absolute top-2.5 right-2.5 h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               aria-label="Clear preview"
             >
               <X size={12} />
             </button>
 
-            {/* Title — prominent, no label above it */}
-            <p className="text-sm font-semibold text-foreground leading-snug pr-6">
+            {/* Title */}
+            <p className="pr-6 text-[15px] font-semibold leading-snug text-foreground">
               {preview.data.title}
             </p>
 
-            {/* AI Summary Section */}
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
+            {/* AI Summary */}
+            <div className="rounded-md bg-muted/25 px-3 py-2">
+              <div className="mb-1 flex items-center gap-1.5">
                 <Sparkles size={11} className="text-muted-foreground/70" />
-                <span className="text-[11px] text-muted-foreground/70 font-medium tracking-wide">AI-generated summary</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  AI-generated summary
+                </span>
               </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <p className="text-sm leading-6 text-foreground/80">
                 {preview.data.aiSummary}
               </p>
             </div>
 
-            {/* Category Row */}
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
+            {/* Meta row */}
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
                 {preview.data.category}
               </span>
-            </div>
 
-            {/* Reminder Row */}
-            <div className="flex items-center gap-2">
               <ReminderPopover
                 reminderAt={reminderAt}
                 onChange={setReminderAt}
                 disabled={isSaving}
+                variant="detailed"
               />
             </div>
           </div>
