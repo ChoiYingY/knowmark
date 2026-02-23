@@ -272,7 +272,7 @@ export default function SaveLink() {
             {isSaving ? (
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                Saving…
+                Saving...
               </span>
             ) : (
               "Save to Library"

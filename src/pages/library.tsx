@@ -34,6 +34,8 @@ export default function Library() {
   const isEmpty = bookmarks !== undefined && bookmarks.length === 0;
   const isNoResults = !isEmpty && filtered.length === 0;
 
+  console.log("bookmarks", bookmarks);
+
   return (
     <AppShell>
       <div className="space-y-6">
@@ -120,7 +122,7 @@ export default function Library() {
               <thead>
                 <tr className="border-b border-border">
                   <th scope="col" className="text-left py-2.5 pr-4 font-medium text-muted-foreground text-xs uppercase tracking-wide w-[35%]">Title</th>
-                  <th scope="col" className="text-left py-2.5 pr-4 font-medium text-muted-foreground text-xs uppercase tracking-wide">AI Summary</th>
+                  <th scope="col" className="text-left py-2.5 pr-4 font-medium text-muted-foreground text-xs uppercase tracking-wide">Summary</th>
                   <th scope="col" className="text-left py-2.5 pr-4 font-medium text-muted-foreground text-xs uppercase tracking-wide w-[110px]">Category</th>
                   <th scope="col" className="text-left py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide w-[160px]">Remind</th>
                 </tr>
@@ -145,6 +147,7 @@ export default function Library() {
                     </td>
                     <td className="py-3">
                       <ReminderPopover
+                        variant="compact"
                         reminderAt={bookmark.reminderAt}
                         onChange={(value) => {
                           updateReminder({ bookmarkId: bookmark._id, reminderAt: value });

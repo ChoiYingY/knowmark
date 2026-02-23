@@ -5,21 +5,21 @@ import { format, addDays } from "date-fns";
 import { CalendarDays, X } from "lucide-react";
 import { useState } from "react";
 
-
 // ─── Reminder Popover Component ───────────────────────────────────────────────
 
 interface ReminderPopoverProps {
   reminderAt: number | null;
   onChange: (value: number | null) => void;
   disabled?: boolean;
+  variant?: "compact" | "detailed";
 }
 
-export function ReminderPopover({ reminderAt, onChange, disabled }: ReminderPopoverProps) {
+export function ReminderPopover({ reminderAt, onChange, disabled, variant = "detailed" }: ReminderPopoverProps) {
   const [open, setOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | undefined>();
   const [hour, setHour] = useState("9");
   const [minute, setMinute] = useState("00");
-  const [ampm, setAmpm] = useState("AM");
+  const [ampm, setAmpm] = useState<"AM" | "PM">("AM");
 
   // Sync state when opening
   const handleOpenChange = (newOpen: boolean) => {
@@ -102,7 +102,13 @@ export function ReminderPopover({ reminderAt, onChange, disabled }: ReminderPopo
         >
           {reminderAt ? (
             <>
-              <span>Remind to read · {format(new Date(reminderAt), "MMM d, h:mm a")}</span>
+              <span className="truncate">
+                {
+                  variant === "compact" ?
+                    format(new Date(reminderAt), "MMM d, h:mm a") :
+                    `Remind to read · ${format(new Date(reminderAt), "MMM d, h:mm a")}`
+                }
+              </span>
               <div 
                 role="button"
                 onClick={handleClear}
@@ -114,7 +120,7 @@ export function ReminderPopover({ reminderAt, onChange, disabled }: ReminderPopo
           ) : (
             <>
               <CalendarDays size={12} />
-              <span>Remind me</span>
+              <span>{ variant === "compact" ? "Add reminder" : "Remind me" }</span>
             </>
           )}
         </button>
@@ -122,37 +128,42 @@ export function ReminderPopover({ reminderAt, onChange, disabled }: ReminderPopo
       
       <Popover.Portal>
         <Popover.Content 
-          className="z-50 w-72 rounded-lg border border-border bg-card shadow-lg p-3 space-y-3" 
+          className="z-50 w-80 rounded-xl bg-card shadow-lg p-4 space-y-3"
           sideOffset={8} 
           align="start"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           {/* Quick actions */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleQuickDate(1)}
-              className={`flex-1 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${
-                isTomorrow(selectedDay) 
-                  ? "bg-accent text-accent-foreground" 
-                  : "bg-secondary text-secondary-foreground hover:bg-accent"
-              }`}
-            >
-              Tomorrow
-            </button>
-            <button
-              onClick={() => handleQuickDate(7)}
-              className={`flex-1 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${
-                isNextWeek(selectedDay)
-                  ? "bg-accent text-accent-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-accent"
-              }`}
-            >
-              Next week
-            </button>
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Quick reminders
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleQuickDate(1)}
+                className={`flex-1 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${
+                  isTomorrow(selectedDay) 
+                    ? "bg-accent text-accent-foreground" 
+                    : "bg-secondary text-secondary-foreground hover:bg-accent"
+                }`}
+              >
+                Tomorrow
+              </button>
+              <button
+                onClick={() => handleQuickDate(7)}
+                className={`flex-1 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${
+                  isNextWeek(selectedDay)
+                    ? "bg-accent text-accent-foreground"
+                    : "bg-secondary text-secondary-foreground hover:bg-accent"
+                }`}
+              >
+                Next week
+              </button>
+            </div>
           </div>
 
-          {/* Calendar */}
-          <div className="flex justify-center">
+          {/* Calendar */}          
+          <div className="flex items-center justify-center pt-2 border-t border-border">
             <DayPicker
               mode="single"
               selected={selectedDay}
@@ -162,8 +173,8 @@ export function ReminderPopover({ reminderAt, onChange, disabled }: ReminderPopo
               classNames={{
                 months: "flex flex-col",
                 month: "space-y-2",
-                caption: "flex justify-center pt-1 relative items-center",
-                caption_label: "text-sm font-medium text-foreground",
+                caption: "flex justify-between px-1 pt-1 relative items-center",
+                caption_label: "text-sm font-semibold text-foreground",
                 nav: "space-x-1 flex items-center",
                 nav_button: "h-6 w-6 bg-transparent p-0 opacity-60 hover:opacity-100 flex items-center justify-center rounded hover:bg-accent",
                 nav_button_previous: "absolute left-1",
@@ -183,7 +194,7 @@ export function ReminderPopover({ reminderAt, onChange, disabled }: ReminderPopo
           </div>
 
           {/* Time Selection */}
-          <div className="flex items-center justify-center gap-1.5 pt-1 border-t border-border">
+          <div className="flex items-center justify-center gap-1.5 pt-2 border-t border-border">
             <span className="text-xs text-muted-foreground mr-1">Time</span>
             <select
               value={hour}
@@ -206,7 +217,7 @@ export function ReminderPopover({ reminderAt, onChange, disabled }: ReminderPopo
             </select>
             <select
               value={ampm}
-              onChange={(e) => setAmpm(e.target.value)}
+              onChange={(e) => setAmpm(e.target.value as "AM" | "PM")}
               className="text-xs border border-border rounded px-1 py-0.5 bg-background h-7 min-w-[3.5rem]"
             >
               <option value="AM">AM</option>
