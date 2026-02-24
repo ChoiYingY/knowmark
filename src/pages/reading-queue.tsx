@@ -8,15 +8,23 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { listBookmarksWithRemindersQuery } from "@/services/bookmarkService";
 import { useAutoAnonymousAuth } from "@/hooks/useAutoAnonymousAuth";
+import { useAppToast } from "@/hooks/useAppToast";
 
 export default function ReadingQueuePage() {
-  useAutoAnonymousAuth();
+  const { isAuthReady } = useAutoAnonymousAuth();
+  const { showToast } = useAppToast();
+
   const navigate = useNavigate();
   const bookmarks = useQuery(listBookmarksWithRemindersQuery);
   const [showAllOverdue, setShowAllOverdue] = useState(false);
   
   const now = Date.now();
   const OVERDUE_PREVIEW_LIMIT = 3;
+
+  if (!isAuthReady) {
+    showToast("Signing you in… please try again in a second.", "info");
+    return;
+  }
 
   if (bookmarks === undefined) {
     return (

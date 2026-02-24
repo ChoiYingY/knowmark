@@ -143,7 +143,6 @@ function formatCreatedAgo(value: unknown): string {
 
 export default function Dashboard() {
   useAutoAnonymousAuth();
-
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
 
   const navigate = useNavigate();

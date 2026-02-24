@@ -10,9 +10,11 @@ import { ReminderPopover } from "@/components/ui/ReminderPopover";
 import { listBookmarksQuery, updateReminderMutation } from "@/services/bookmarkService";
 import { BOOKMARK_CATEGORIES } from "@/types/bookmark";
 import { useAutoAnonymousAuth } from "@/hooks/useAutoAnonymousAuth";
+import { useAppToast } from "@/hooks/useAppToast";
 
 export default function Library() {
-  useAutoAnonymousAuth();
+  const { isAuthReady } = useAutoAnonymousAuth();
+  const { showToast } = useAppToast();
   const navigate = useNavigate();
 
   const bookmarks = useQuery(listBookmarksQuery); // undefined = loading, [] = empty
@@ -41,6 +43,11 @@ export default function Library() {
 
     setSearchParams(next, { replace: true });
   }, [searchQuery, categoryFilter, setSearchParams]);
+
+  if (!isAuthReady) {
+    showToast("Signing you in… please try again in a second.", "info");
+    return;
+  }
 
   const filtered = (bookmarks ?? []).filter((b) => {
     const title = (b.title ?? "").toLowerCase();

@@ -40,14 +40,25 @@ export const getByNormalizedUrl = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new ConvexError("Not authenticated");
 
-    const result = await ctx.db
+    const bookmark = await ctx.db
       .query("bookmarks")
       .withIndex("by_userId_normalizedUrl", (q) =>
         q.eq("userId", userId).eq("normalizedUrl", args.normalizedUrl)
       )
       .first();
 
-    return result ?? null;
+    if (!bookmark) return null;
+
+    // Return only what the Save Link preview needs for duplicate state
+    return {
+      _id: bookmark._id,
+      url: bookmark.url,
+      normalizedUrl: bookmark.normalizedUrl,
+      title: bookmark.title ?? bookmark.url,
+      category: bookmark.category ?? "Uncategorized",
+      reminderAt: bookmark.reminderAt ?? null,
+      createdAt: bookmark.createdAt ?? null,
+    };
   },
 });
 
