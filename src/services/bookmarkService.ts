@@ -6,3 +6,5 @@ export const getByNormalizedUrlQuery = api.bookmarks.getByNormalizedUrl;
 export const createBookmarkMutation = api.bookmarks.createBookmark;
 export const updateReminderMutation = api.bookmarks.updateReminder;
 export const fetchPageTitleAction = api.bookmarkActions.fetchPageTitle;
+export const deleteBookmarkMutation = api.bookmarks.deleteBookmark;
+export const updateBookmarkTitleMutation = api.bookmarks.updateBookmarkTitle;
