@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "convex/react";
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { BookOpen, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
@@ -17,17 +17,43 @@ export default function Library() {
 
   const bookmarks = useQuery(listBookmarksQuery); // undefined = loading, [] = empty
   const updateReminder = useMutation(updateReminderMutation);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("All");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get("q") ?? "");
+  const [categoryFilter, setCategoryFilter] = useState<string>(
+    () => searchParams.get("category") ?? "All"
+  );
+
+  useEffect(() => {
+    const qFromUrl = searchParams.get("q") ?? "";
+    const categoryFromUrl = searchParams.get("category") ?? "All";
+
+    setSearchQuery(qFromUrl);
+    setCategoryFilter(categoryFromUrl);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const next = new URLSearchParams();
+
+    const trimmedQ = searchQuery.trim();
+    if (trimmedQ) next.set("q", trimmedQ);
+
+    if (categoryFilter !== "All") next.set("category", categoryFilter);
+
+    setSearchParams(next, { replace: true });
+  }, [searchQuery, categoryFilter, setSearchParams]);
 
   const filtered = (bookmarks ?? []).filter((b) => {
+    const title = (b.title ?? "").toLowerCase();
+    const summary = (b.aiSummary ?? "").toLowerCase();
+    const url = (b.url ?? "").toLowerCase();
+    const query = searchQuery.toLowerCase();
+
     const matchesSearch =
-      !searchQuery ||
-      b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      b.aiSummary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      b.url.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      categoryFilter === "All" || b.category === categoryFilter;
+      !query || title.includes(query) || summary.includes(query) || url.includes(query);
+
+    const category = b.category ?? "Uncategorized";
+    const matchesCategory = categoryFilter === "All" || category === categoryFilter;
+
     return matchesSearch && matchesCategory;
   });
 
@@ -51,7 +77,7 @@ export default function Library() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-
+        
         <hr className="border-t border-border -mt-6 mb-6" />
 
         {/* Search + filter bar */}
@@ -73,7 +99,7 @@ export default function Library() {
                 </button>
               )}
             </div>
-
+            
             {/* Category filter */}
             <select
               value={categoryFilter}
@@ -107,8 +133,8 @@ export default function Library() {
         ) : isNoResults ? (
           <div className="text-center py-12">
             <p className="text-sm text-muted-foreground">No results found for your search.</p>
-            <Button
-              variant="link"
+            <Button 
+              variant="link" 
               onClick={() => { setSearchQuery(""); setCategoryFilter("All"); }}
               className="mt-2"
             >
@@ -131,7 +157,7 @@ export default function Library() {
                   <tr key={bookmark._id} className="border-b border-border/50 hover:bg-muted/30 transition-colors group">
                     <td className="py-3 pr-4">
                       <a href={bookmark.url} target="_blank" rel="noopener noreferrer"
-                        className="font-medium text-foreground hover:underline line-clamp-1">
+                         className="font-medium text-foreground hover:underline line-clamp-1">
                         {bookmark.title}
                       </a>
                       <p className="text-xs text-muted-foreground mt-0.5 truncate">{bookmark.url}</p>
