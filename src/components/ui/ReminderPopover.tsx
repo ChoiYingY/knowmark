@@ -193,9 +193,9 @@ export function ReminderPopover({
                 {variant === "compact"
                   ? format(new Date(reminderAt), "MMM d, h:mm a")
                   : `Remind to read · ${format(
-                    new Date(reminderAt),
-                    "MMM d, h:mm a"
-                  )}`}
+                      new Date(reminderAt),
+                      "MMM d, h:mm a"
+                    )}`}
               </span>
               <div
                 role="button"
@@ -232,20 +232,22 @@ export function ReminderPopover({
                 <button
                   type="button"
                   onClick={() => handleQuickDate(1)}
-                  className={`px-3 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${isTomorrow(selectedDay)
+                  className={`px-3 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${
+                    isTomorrow(selectedDay)
                       ? "bg-accent text-accent-foreground"
                       : "bg-secondary text-secondary-foreground hover:bg-accent"
-                    }`}
+                  }`}
                 >
                   Tomorrow
                 </button>
                 <button
                   type="button"
                   onClick={() => handleQuickDate(7)}
-                  className={`px-3 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${isNextWeek(selectedDay)
+                  className={`px-3 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${
+                    isNextWeek(selectedDay)
                       ? "bg-accent text-accent-foreground"
                       : "bg-secondary text-secondary-foreground hover:bg-accent"
-                    }`}
+                  }`}
                 >
                   Next week
                 </button>
@@ -276,8 +278,8 @@ export function ReminderPopover({
                     nav_button_previous: "absolute right-8",
                     nav_button_next: "absolute right-1",
                     table: "w-full border-collapse",
-                    head_cell: "w-8 h-7 text-[11px] font-medium text-muted-foreground text-center",
-                    day: "h-8 w-8 p-0 rounded-full text-sm font-normal hover:bg-accent transition-colors",
+                    head_cell: "w-8 h-7 text-[11px] font-medium text-muted-foreground text-center",  
+                    day:"h-8 w-8 p-0 rounded-full text-sm font-normal hover:bg-accent transition-colors",
                     day_selected:
                       "!bg-black !text-white rounded-full hover:!bg-black focus:!bg-black active:!bg-black active:!ring-bg-lback",
                     day_today: "rounded-full ring-1 ring-primary/30 font-medium aria-selected:!text-white aria-selected:!bg-black",
@@ -306,12 +308,13 @@ export function ReminderPopover({
                         type="button"
                         onClick={() => handleTimeSlotClick(slot)}
                         disabled={disabledSlot}
-                        className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${selected
+                        className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
+                          selected
                             ? "bg-accent text-accent-foreground font-medium"
                             : disabledSlot
-                              ? "text-muted-foreground/40 cursor-not-allowed"
-                              : "text-foreground hover:bg-accent/60"
-                          }`}
+                            ? "text-muted-foreground/40 cursor-not-allowed"
+                            : "text-foreground hover:bg-accent/60"
+                        }`}
                       >
                         {slot.label}
                       </button>
@@ -358,10 +361,11 @@ export function ReminderPopover({
                 type="button"
                 onClick={handleSetReminder}
                 disabled={!selectedDay || isInvalidPastSelection}
-                className={`text-xs px-3 py-1.5 rounded transition-colors ${!selectedDay || isInvalidPastSelection
+                className={`text-xs px-3 py-1.5 rounded transition-colors ${
+                  !selectedDay || isInvalidPastSelection
                     ? "bg-primary text-primary-foreground opacity-50 pointer-events-none"
                     : "bg-primary text-primary-foreground hover:bg-primary/90"
-                  }`}
+                }`}
               >
                 Set reminder
               </button>

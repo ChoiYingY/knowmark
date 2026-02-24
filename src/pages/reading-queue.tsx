@@ -14,7 +14,7 @@ export default function ReadingQueuePage() {
   const navigate = useNavigate();
   const bookmarks = useQuery(listBookmarksWithRemindersQuery);
   const [showAllOverdue, setShowAllOverdue] = useState(false);
-
+  
   const now = Date.now();
   const OVERDUE_PREVIEW_LIMIT = 3;
 
@@ -37,9 +37,9 @@ export default function ReadingQueuePage() {
           <hr className="border-t border-border -mt-6 mb-6" />
 
           <div className="space-y-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-16 bg-muted/30 animate-pulse rounded-md" />
-            ))}
+             {[...Array(4)].map((_, i) => (
+               <div key={i} className="h-16 bg-muted/30 animate-pulse rounded-md" />
+             ))}
           </div>
         </div>
       </AppShell>
@@ -102,37 +102,37 @@ export default function ReadingQueuePage() {
     let reminderEl;
 
     if (isOverdue) {
-      reminderEl = (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium">Overdue</span>
-          <span className="text-xs text-muted-foreground">{format(reminderDate, "h:mm a")}</span>
-        </div>
-      );
+       reminderEl = (
+         <div className="flex items-center gap-2">
+           <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium">Overdue</span>
+           <span className="text-xs text-muted-foreground">{format(reminderDate, "h:mm a")}</span>
+         </div>
+       );
     } else if (isCalendarToday) {
-      reminderEl = <span className="text-xs text-muted-foreground">{format(reminderDate, "h:mm a")}</span>;
+       reminderEl = <span className="text-xs text-muted-foreground">{format(reminderDate, "h:mm a")}</span>;
     } else {
-      // Upcoming or Later
-      reminderEl = <span className="text-xs text-muted-foreground">{format(reminderDate, "MMM d '·' h:mm a")}</span>;
+       // Upcoming or Later
+       reminderEl = <span className="text-xs text-muted-foreground">{format(reminderDate, "MMM d '·' h:mm a")}</span>;
     }
 
     return (
-      <div key={b._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors">
-        <div className="space-y-1.5 min-w-0">
-          <div className="flex items-center gap-2">
-            <a href={b.url} target="_blank" rel="noopener noreferrer" className="font-medium text-sm truncate hover:underline">{b.title}</a>
-            <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground whitespace-nowrap">
-              {b.category}
-            </span>
+       <div key={b._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors">
+          <div className="space-y-1.5 min-w-0">
+             <div className="flex items-center gap-2">
+                <a href={b.url} target="_blank" rel="noopener noreferrer" className="font-medium text-sm truncate hover:underline">{b.title}</a>
+                <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground whitespace-nowrap">
+                  {b.category}
+                </span>
+             </div>
+             {showSummary && b.aiSummary && (
+               <p className="text-xs text-muted-foreground line-clamp-1">{b.aiSummary}</p>
+             )}
           </div>
-          {showSummary && b.aiSummary && (
-            <p className="text-xs text-muted-foreground line-clamp-1">{b.aiSummary}</p>
-          )}
-        </div>
-
-        <div className="flex-shrink-0">
-          {reminderEl}
-        </div>
-      </div>
+          
+          <div className="flex-shrink-0">
+             {reminderEl}
+          </div>
+       </div>
     );
   }
 
@@ -154,22 +154,22 @@ export default function ReadingQueuePage() {
         <hr className="border-t border-border -mt-6 mb-6" />
 
         {isEmpty ? (
-          <div className="flex flex-col items-center justify-center py-12 space-y-4 text-center">
-            <Clock className="h-12 w-12 text-muted-foreground/50" />
-            <div className="space-y-1">
-              <h3 className="font-medium text-lg">Your reading queue is empty.</h3>
-              <p className="text-sm text-muted-foreground">Set a reminder on any saved link to add it here.</p>
-            </div>
-            <div className="flex gap-2 pt-2">
-              <Button onClick={() => navigate("/save")}>Add Link</Button>
-              <Button variant="outline" onClick={() => navigate("/library")}>Browse Library</Button>
-            </div>
-          </div>
+           <div className="flex flex-col items-center justify-center py-12 space-y-4 text-center">
+             <Clock className="h-12 w-12 text-muted-foreground/50" />
+             <div className="space-y-1">
+               <h3 className="font-medium text-lg">Your reading queue is empty.</h3>
+               <p className="text-sm text-muted-foreground">Set a reminder on any saved link to add it here.</p>
+             </div>
+             <div className="flex gap-2 pt-2">
+               <Button onClick={() => navigate("/save")}>Add Link</Button>
+               <Button variant="outline" onClick={() => navigate("/library")}>Browse Library</Button>
+             </div>
+           </div>
         ) : (
-          <div className="space-y-12">
-            {todayCount > 0 && (
+           <div className="space-y-12">
+             {todayCount > 0 && (
               <section>
-                <h2 className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                <h2 className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
                   <span className="text-[8px] text-amber-400">●</span>
                   Today ({todayCount})
                 </h2>
@@ -178,7 +178,7 @@ export default function ReadingQueuePage() {
                   {/* Due later today: always visible, keep these on top */}
                   {todayDueLater.length > 0 && (
                     <>
-                      <p className="text-[11px] font-medium text-muted-foreground px-1">
+                      <p className="text-[11px] font-medium font-semibold text-muted-foreground px-1">
                         Due later today
                       </p>
                       {todayDueLater.map((b) => renderRow(b, { showSummary: false }))}
@@ -217,30 +217,30 @@ export default function ReadingQueuePage() {
               </section>
             )}
 
-            {upcomingWeek.length > 0 && (
-              <section>
-                <h2 className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                  <span className="text-[8px] text-blue-400">●</span>
-                  Upcoming Week ({upcomingWeek.length})
-                </h2>
-                <div className="space-y-3">
-                  {upcomingWeek.map((b) => renderRow(b, { showSummary: false }))}
-                </div>
-              </section>
-            )}
+             {upcomingWeek.length > 0 && (
+               <section>
+                 <h2 className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
+                   <span className="text-[8px] text-blue-400">●</span>
+                   Upcoming Week ({upcomingWeek.length})
+                 </h2>
+                 <div className="space-y-3">
+                    {upcomingWeek.map((b) => renderRow(b, { showSummary: false }))}
+                 </div>
+               </section>
+             )}
 
-            {later.length > 0 && (
-              <section>
-                <h2 className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                  <span className="text-[8px] text-muted-foreground/50">●</span>
-                  Later ({later.length})
-                </h2>
-                <div className="space-y-3">
-                  {later.map((b) => renderRow(b, { showSummary: false }))}
-                </div>
-              </section>
-            )}
-          </div>
+             {later.length > 0 && (
+               <section>
+                  <h2 className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
+                    <span className="text-[8px] text-muted-foreground/50">●</span>
+                    Later ({later.length})
+                  </h2>
+                  <div className="space-y-3">
+                    {later.map((b) => renderRow(b, { showSummary: false }))}
+                  </div>
+                </section>
+             )}
+           </div>
         )}
       </div>
     </AppShell>
