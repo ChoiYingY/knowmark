@@ -137,3 +137,44 @@ export const updateReminder = mutation({
     return await ctx.db.get(args.bookmarkId);
   },
 });
+
+export const deleteBookmark = mutation({
+  args: { bookmarkId: v.id("bookmarks") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const doc = await ctx.db.get(args.bookmarkId);
+    if (!doc) throw new ConvexError("Bookmark not found");
+    if (doc.userId !== userId) throw new ConvexError("Not authorized");
+
+    await ctx.db.delete(args.bookmarkId);
+  },
+});
+
+export const updateBookmarkTitle = mutation({
+  args: {
+    bookmarkId: v.id("bookmarks"),
+    title: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new ConvexError("Not authenticated");
+
+    const doc = await ctx.db.get(args.bookmarkId);
+    if (!doc) throw new ConvexError("Bookmark not found");
+    if (doc.userId !== userId) throw new ConvexError("Not authorized");
+
+    const nextTitle = args.title.trim();
+    if (!nextTitle) {
+      throw new ConvexError("Title cannot be empty");
+    }
+
+    await ctx.db.patch(args.bookmarkId, {
+      title: nextTitle,
+      updatedAt: Date.now(),
+    });
+
+    return await ctx.db.get(args.bookmarkId);
+  },
+});

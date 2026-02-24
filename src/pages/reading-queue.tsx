@@ -127,7 +127,17 @@ export default function ReadingQueuePage() {
        <div key={b._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors">
           <div className="space-y-1.5 min-w-0">
              <div className="flex items-center gap-2">
-                <a href={b.url} target="_blank" rel="noopener noreferrer" className="font-medium text-sm truncate hover:underline">{b.title}</a>
+                <div className="min-w-0 flex-1">
+                  <a
+                    href={b.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={b.url ?? ""}
+                    className="font-medium text-foreground hover:underline line-clamp-1"
+                  >
+                    {b.title}
+                  </a>
+                </div>
                 <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground whitespace-nowrap">
                   {b.category}
                 </span>
