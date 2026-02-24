@@ -1,26 +1,34 @@
-type PreviewStatePanelProps =
-  | { mode: "empty" }
-  | { mode: "invalid" };
+import { FileX2, Link } from "lucide-react";
 
-export function PreviewStatePanel(props: PreviewStatePanelProps) {
-  if (props.mode === "empty") {
+interface PreviewStatePanelProps {
+  mode: "empty" | "invalid";
+}
+
+export function PreviewStatePanel({ mode }: PreviewStatePanelProps) {
+  if (mode === "empty") {
     return (
-      <div className="min-h-[120px] border border-dashed border-border rounded-lg flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">
-          Preview will appear here after clicking Preview
-        </p>
+      <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/5 py-12 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/20">
+          <Link className="h-6 w-6 text-muted-foreground/60" />
+        </div>
+        <div className="mt-4 space-y-1">
+          <p className="text-sm font-medium text-muted-foreground">
+            Paste a link above and click Preview
+          </p>
+        </div>
       </div>
     );
   }
 
+  // mode === "invalid"
   return (
-    <div className="rounded-lg border-2 border-destructive/50 bg-background px-4 py-4">
-      <p className="text-sm text-destructive font-medium">
-        This doesn't look like a valid link
-      </p>
-      <p className="text-xs text-muted-foreground mt-1">
-        Make sure the URL starts with http:// or https:// and try again.
-      </p>
+    <div className="flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-destructive">
+      <FileX2 className="h-5 w-5 shrink-0" />
+      <div className="flex-1">
+        <p className="text-sm font-medium">
+          This doesn't look like a valid link. Please check the URL and try again.
+        </p>
+      </div>
     </div>
   );
 }

@@ -1,38 +1,36 @@
-import type { ReactNode } from "react";
-import type { BookmarkCategory } from "@/types/bookmark";
 import {
-  AlertCircle,
   CheckCircle2,
-  Copy,
-  FileX2,
-  Loader2,
   X,
+  AlertTriangle,
+  AlertCircle,
+  FileX2,
+  Link,
+  Loader2,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-export type BulkLineStatus =
-  | "processing"
-  | "ready"
-  | "duplicate"
-  | "invalid"
-  | "error"
-  | "saving"
-  | "saved";
-
-export type BulkLineReason =
-  | "already_saved"
-  | "duplicate_in_paste"
-  | "invalid_url"
-  | "fetch_failed"
-  | "save_failed";
-
-export interface BulkLineResult {
+// Matches BulkLineResult in save-link.tsx
+export interface BulkLineItem {
   originalLine: string;
   normalizedUrl?: string;
   title?: string;
   aiSummary?: string;
-  category?: BookmarkCategory;
-  status: BulkLineStatus;
-  reason?: BulkLineReason;
+  category?: string;
+  status:
+    | "processing"
+    | "ready"
+    | "duplicate"
+    | "invalid"
+    | "error"
+    | "saving"
+    | "saved";
+  reason?:
+    | "already_saved"
+    | "duplicate_in_paste"
+    | "invalid_url"
+    | "fetch_failed"
+    | "save_failed";
 }
 
 export interface BulkImportResult {
@@ -43,101 +41,9 @@ export interface BulkImportResult {
 }
 
 interface BulkLinkPreviewCardProps {
-  item: BulkLineResult;
-  onRemove?: () => void;
+  item: BulkLineItem;
+  onRemove: () => void;
   disableRemove?: boolean;
-}
-
-type StatusConfig = {
-  badgeLabel: string;
-  message: string;
-  icon: ReactNode;
-  cardClasses: string;
-  badgeClasses: string;
-};
-
-function getStatusConfig(
-  status: BulkLineStatus,
-  reason?: BulkLineReason
-): StatusConfig {
-  switch (status) {
-    case "processing":
-      return {
-        badgeLabel: "Processing",
-        message: "Preparing preview…",
-        icon: <Loader2 size={12} className="animate-spin" />,
-        cardClasses: "border-border bg-card",
-        badgeClasses: "bg-muted text-muted-foreground",
-      };
-
-    case "ready":
-      return {
-        badgeLabel: "Ready to save",
-        message: "",
-        icon: <CheckCircle2 size={12} />,
-        cardClasses:
-          "border-green-200 bg-green-50/40 dark:border-green-800/40 dark:bg-green-950/10",
-        badgeClasses:
-          "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-      };
-
-    case "duplicate":
-      return {
-        badgeLabel:
-          reason === "duplicate_in_paste"
-            ? "Duplicate in pasted list"
-            : "Already in library",
-        message:
-          reason === "duplicate_in_paste"
-            ? "Skipped in preview because this link appears more than once."
-            : "Skipped in preview because this link already exists in your library.",
-        icon: <Copy size={12} />,
-        cardClasses:
-          "border-yellow-200 bg-yellow-50/40 dark:border-yellow-800/40 dark:bg-yellow-950/10",
-        badgeClasses:
-          "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-      };
-
-    case "invalid":
-      return {
-        badgeLabel: "Invalid URL",
-        message: "Skipped in preview. Make sure the link starts with http:// or https://.",
-        icon: <FileX2 size={12} />,
-        cardClasses: "border-destructive/30 bg-destructive/5",
-        badgeClasses: "bg-destructive/10 text-destructive",
-      };
-
-    case "error":
-      return {
-        badgeLabel: "Preview error",
-        message: "Could not preview this link. You can retry.",
-        icon: <AlertCircle size={12} />,
-        cardClasses:
-          "border-orange-200 bg-orange-50/40 dark:border-orange-800/40 dark:bg-orange-950/10",
-        badgeClasses:
-          "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
-      };
-
-    case "saving":
-      return {
-        badgeLabel: "Saving",
-        message: "Saving this link to your library…",
-        icon: <Loader2 size={12} className="animate-spin" />,
-        cardClasses: "border-border bg-card",
-        badgeClasses: "bg-muted text-muted-foreground",
-      };
-
-    case "saved":
-      return {
-        badgeLabel: "Saved",
-        message: "Saved to your library.",
-        icon: <CheckCircle2 size={12} />,
-        cardClasses:
-          "border-green-200 bg-green-50/40 dark:border-green-800/40 dark:bg-green-950/10",
-        badgeClasses:
-          "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-      };
-  }
 }
 
 export function BulkLinkPreviewCard({
@@ -145,66 +51,192 @@ export function BulkLinkPreviewCard({
   onRemove,
   disableRemove,
 }: BulkLinkPreviewCardProps) {
-  const c = getStatusConfig(item.status, item.reason);
-  const title = item.title ?? item.originalLine;
-  const showUrlLine = Boolean(item.title && item.title !== item.originalLine);
+  const { status, originalLine, title, category, reason } = item;
 
-  return (
-    <div className={`relative rounded-lg border px-4 py-3 ${c.cardClasses}`}>
-      {onRemove && (
-        <button
-          type="button"
+  // Processing
+  if (status === "processing") {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 shadow-sm">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        <span className="flex-1 truncate text-sm text-muted-foreground">
+          {originalLine}
+        </span>
+      </div>
+    );
+  }
+
+  // Invalid
+  if (status === "invalid") {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 shadow-sm">
+        <FileX2 className="h-4 w-4 shrink-0 text-destructive" />
+        <div className="flex-1 space-y-1 overflow-hidden">
+          <p className="truncate text-sm font-medium text-destructive">
+            {originalLine}
+          </p>
+          <div className="flex items-center gap-2">
+            <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">
+              Invalid URL
+            </Badge>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
           onClick={onRemove}
           disabled={disableRemove}
-          className="absolute top-2 right-2 h-6 w-6 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
-          aria-label="Remove from bulk preview"
         >
-          <X size={14} />
-        </button>
-      )}
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    );
+  }
 
-      <div className="pr-8">
-        <span
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${c.badgeClasses}`}
-        >
-          {c.icon}
-          {c.badgeLabel}
-        </span>
-
-        <p className="mt-2 text-sm font-medium text-foreground break-words">
-          {title}
-        </p>
-
-        {showUrlLine && (
-          <p className="mt-1 text-xs text-muted-foreground break-all" title={item.originalLine}>
-            {item.originalLine}
+  // Error
+  if (status === "error") {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-orange-200 bg-orange-50 p-3 shadow-sm dark:border-orange-900/30 dark:bg-orange-900/10">
+        <AlertCircle className="h-4 w-4 shrink-0 text-orange-600 dark:text-orange-400" />
+        <div className="flex-1 space-y-1 overflow-hidden">
+          <p className="truncate text-sm font-medium text-orange-700 dark:text-orange-300">
+            {originalLine}
           </p>
-        )}
-
-        {c.message ? (
-          <p className="mt-1.5 text-xs text-muted-foreground">{c.message}</p>
-        ) : null}
+          <Badge
+            variant="outline"
+            className="h-5 border-orange-200 bg-orange-100 px-1.5 text-[10px] text-orange-700 dark:border-orange-800 dark:bg-orange-900/40 dark:text-orange-300"
+          >
+            Fetch Failed
+          </Badge>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 shrink-0 text-orange-600 hover:bg-orange-100 hover:text-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/30"
+          onClick={onRemove}
+          disabled={disableRemove}
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-/**
- * Optional: keep this export only if your SaveLink page still uses <BulkStatusBanner /> somewhere.
- * You can delete this later once fully migrated to BulkLinkPreviewCard.
- */
-export function BulkStatusBanner({ item }: { item: BulkLineResult }) {
-  if (item.status === "processing") return null;
+  // Duplicate
+  if (status === "duplicate") {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 shadow-sm dark:border-yellow-900/30 dark:bg-yellow-900/10">
+        <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-400" />
+        <div className="flex-1 space-y-1 overflow-hidden">
+          <p className="truncate text-sm font-medium text-foreground">
+            {title || originalLine}
+          </p>
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="outline"
+              className="h-5 border-yellow-200 bg-yellow-100 px-1.5 text-[10px] text-yellow-700 dark:border-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300"
+            >
+              Duplicate
+            </Badge>
+            <span className="truncate text-xs text-yellow-700/80 dark:text-yellow-400/80">
+              {reason === "already_saved"
+                ? "Already in library"
+                : "Duplicate in paste"}
+            </span>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 shrink-0 text-yellow-600 hover:bg-yellow-100 hover:text-yellow-800 dark:text-yellow-400 dark:hover:bg-yellow-900/30"
+          onClick={onRemove}
+          disabled={disableRemove}
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    );
+  }
 
-  const c = getStatusConfig(item.status, item.reason);
+  // Saving
+  if (status === "saving") {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 shadow-sm">
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        <div className="flex-1 space-y-1 overflow-hidden">
+          <p className="truncate text-sm font-medium text-foreground">
+            {title || originalLine}
+          </p>
+          <p className="text-xs text-muted-foreground">Saving...</p>
+        </div>
+      </div>
+    );
+  }
 
+  // Saved
+  if (status === "saved") {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3 shadow-sm dark:border-green-900/30 dark:bg-green-900/10">
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
+        <div className="flex-1 space-y-1 overflow-hidden">
+          <p className="truncate text-sm font-medium text-foreground">
+            {title || originalLine}
+          </p>
+          <Badge
+            variant="outline"
+            className="h-5 border-green-200 bg-green-100 px-1.5 text-[10px] text-green-700 dark:border-green-800 dark:bg-green-900/40 dark:text-green-300"
+          >
+            Saved
+          </Badge>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 shrink-0 text-muted-foreground hover:bg-muted hover:text-foreground"
+          onClick={onRemove}
+          disabled={disableRemove}
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    );
+  }
+
+  // Ready (Default)
   return (
-    <div className={`flex items-start gap-2 rounded-md border px-3 py-2.5 ${c.cardClasses}`}>
-      <span className="mt-0.5 shrink-0">{c.icon}</span>
-      <div>
-        <p className="text-xs font-medium">{c.badgeLabel}</p>
-        <p className="text-xs opacity-80 mt-0.5">{c.message}</p>
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 shadow-sm transition-colors hover:border-primary/50">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <Link className="h-4 w-4" />
       </div>
+      
+      <div className="flex-1 space-y-1 overflow-hidden">
+        <p className="truncate text-sm font-medium text-foreground">
+          {title || originalLine}
+        </p>
+        <div className="flex items-center gap-2">
+          {category && (
+            <span className="inline-flex items-center rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              {category}
+            </span>
+          )}
+          <Badge
+            variant="secondary"
+            className="h-5 bg-green-100 px-1.5 text-[10px] text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400"
+          >
+            Ready
+          </Badge>
+        </div>
+      </div>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6 shrink-0 text-muted-foreground hover:bg-muted hover:text-foreground"
+        onClick={onRemove}
+        disabled={disableRemove}
+      >
+        <X className="h-3.5 w-3.5" />
+      </Button>
     </div>
   );
 }

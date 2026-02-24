@@ -1,24 +1,17 @@
-import type { ReactNode } from "react";
-import { AlertTriangle, Sparkles, X } from "lucide-react";
+import { AlertTriangle, Sparkles, X, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ReminderPopover } from "@/components/ui/ReminderPopover";
 
-type LinkPreviewCardBaseProps = {
-  className?: string;
-};
+interface LinkPreviewCardProps {
+  // Loading mode
+  mode: "loading" | "ready";
+  rawUrl?: string;
 
-type LoadingCardProps = LinkPreviewCardBaseProps & {
-  mode: "loading";
-  rawUrl: string;
-};
-
-type CardTone = "default" | "green" | "yellow" | "red" | "orange";
-
-type ReadyCardProps = LinkPreviewCardBaseProps & {
-  mode: "ready";
-  title: string;
-  aiSummary: string;
-  category: string;
-
+  // Ready mode
+  title?: string;
+  aiSummary?: string;
+  category?: string;
   isDuplicate?: boolean;
   isSaving?: boolean;
   reminderAt?: number | null;
@@ -26,112 +19,112 @@ type ReadyCardProps = LinkPreviewCardBaseProps & {
   onClear?: () => void;
   showClearButton?: boolean;
   showReminder?: boolean;
-  topContent?: ReactNode;
-
-  borderTone?: CardTone;
   showSummary?: boolean;
-  showCategory?: boolean;
-};
+}
 
-export type LinkPreviewCardProps = LoadingCardProps | ReadyCardProps;
-
-export function LinkPreviewCard(props: LinkPreviewCardProps) {
-  if (props.mode === "loading") {
+export function LinkPreviewCard({
+  mode,
+  rawUrl,
+  title,
+  aiSummary,
+  category,
+  isDuplicate,
+  isSaving,
+  reminderAt,
+  onReminderChange,
+  onClear,
+  showClearButton,
+  showReminder,
+  showSummary,
+}: LinkPreviewCardProps) {
+  if (mode === "loading") {
     return (
-      <div className={`rounded-xl border border-border/50 bg-muted/20 px-4 py-3 ${props.className ?? ""}`}>
+      <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <span
-            aria-hidden="true"
-            className="inline-block h-4 w-4 rounded-full border-2 border-muted-foreground/30 border-t-primary animate-spin"
-          />
-          <p className="min-w-0 text-sm text-muted-foreground">
-            <span className="font-medium text-muted-foreground/80">Processing </span>
-            <span className="truncate inline-block max-w-[420px] align-bottom">
-              {props.rawUrl || "link..."}
-            </span>
-          </p>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+          <div className="space-y-1 overflow-hidden">
+            <p className="text-sm font-medium">Fetching preview...</p>
+            {rawUrl && (
+              <p className="truncate text-xs text-muted-foreground">{rawUrl}</p>
+            )}
+          </div>
         </div>
       </div>
     );
   }
 
-  const {
-    title,
-    aiSummary,
-    category,
-    isDuplicate = false,
-    isSaving = false,
-    reminderAt = null,
-    onReminderChange,
-    onClear,
-    showClearButton = true,
-    showReminder = true,
-    topContent,
-    className,
-  } = props;
-
+  // Ready mode
   return (
     <div
-      className={`relative rounded-lg border-2 bg-card px-5 py-4 space-y-2.5 ${
+      className={cn(
+        "relative rounded-lg border-2 bg-card p-4 shadow-sm transition-all",
         isDuplicate ? "border-yellow-400/70" : "border-border"
-      } ${className ?? ""}`}
+      )}
     >
       {showClearButton && onClear && (
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute right-2 top-2 h-6 w-6 text-muted-foreground hover:bg-muted hover:text-foreground"
           onClick={onClear}
-          className="absolute top-2.5 right-2.5 h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-          aria-label="Clear preview"
+          disabled={isSaving}
         >
-          <X size={12} />
-        </button>
+          <X className="h-4 w-4" />
+        </Button>
       )}
 
-      {/* Optional slot for future bulk status row/badge */}
-      {topContent}
+      <div className="space-y-3">
+        {/* Duplicate Banner */}
+        {isDuplicate && (
+          <div className="mb-2 flex items-center gap-2 rounded-md bg-yellow-50 p-2 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span className="text-xs font-medium">
+              Already in your library — reminder kept.
+            </span>
+          </div>
+        )}
 
-      {isDuplicate && (
-        <div className="flex items-start gap-2 rounded-md bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800/50 px-3 py-2.5">
-          <AlertTriangle size={13} className="mt-0.5 shrink-0 text-yellow-600 dark:text-yellow-500" />
-          <div>
-            <p className="text-xs font-medium text-yellow-800 dark:text-yellow-400">
-              Already in your library
-            </p>
-            <p className="text-xs text-yellow-700/80 dark:text-yellow-500/80 mt-0.5">
-              This link is already saved. Existing reminder will be kept.
+        {/* Title */}
+        <h3 className="line-clamp-2 text-base font-semibold leading-tight tracking-tight">
+          {title}
+        </h3>
+
+        {/* AI Summary */}
+        {showSummary && aiSummary && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Sparkles className="h-3 w-3 text-purple-500" />
+              <span className="font-medium text-purple-600/90 dark:text-purple-400/90">
+                AI-generated summary
+              </span>
+            </div>
+            <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+              {aiSummary}
             </p>
           </div>
-        </div>
-      )}
-
-      <p className="pr-6 text-[15px] font-semibold leading-snug text-foreground">
-        {title}
-      </p>
-
-      {aiSummary && (<div className="rounded-md bg-muted/25 px-3 py-2">
-        <div className="mb-1 flex items-center gap-1.5">
-          <Sparkles size={11} className="text-muted-foreground/70" />
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            AI-generated summary
-          </span>
-        </div>
-        <p className="text-sm leading-6 text-foreground/80">
-          {aiSummary}
-        </p>
-      </div>)}
-
-      <div className="flex flex-wrap items-center gap-2 pt-0.5">
-        <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
-          {category}
-        </span>
-
-        {showReminder && onReminderChange && (
-          <ReminderPopover
-            reminderAt={reminderAt}
-            onChange={onReminderChange}
-            disabled={isSaving}
-            variant="detailed"
-          />
         )}
+
+        {/* Footer: Category + Reminder */}
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          {category && (
+            <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+              {category}
+            </span>
+          )}
+
+          {showReminder && onReminderChange && (
+            <div className="flex items-center">
+              <ReminderPopover
+                reminderAt={reminderAt ?? null}
+                onChange={onReminderChange}
+                disabled={isSaving}
+                variant="detailed"
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
