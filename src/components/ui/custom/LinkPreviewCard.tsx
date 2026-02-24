@@ -19,7 +19,6 @@ type ReadyCardProps = LinkPreviewCardBaseProps & {
   aiSummary: string;
   category: string;
 
-  // existing
   isDuplicate?: boolean;
   isSaving?: boolean;
   reminderAt?: number | null;
@@ -108,7 +107,7 @@ export function LinkPreviewCard(props: LinkPreviewCardProps) {
         {title}
       </p>
 
-      <div className="rounded-md bg-muted/25 px-3 py-2">
+      {aiSummary && (<div className="rounded-md bg-muted/25 px-3 py-2">
         <div className="mb-1 flex items-center gap-1.5">
           <Sparkles size={11} className="text-muted-foreground/70" />
           <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -118,7 +117,7 @@ export function LinkPreviewCard(props: LinkPreviewCardProps) {
         <p className="text-sm leading-6 text-foreground/80">
           {aiSummary}
         </p>
-      </div>
+      </div>)}
 
       <div className="flex flex-wrap items-center gap-2 pt-0.5">
         <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
