@@ -28,13 +28,6 @@ const SORT_LABELS: Record<SortOrder, string> = {
 
 const VALID_SORTS: SortOrder[] = ["added-desc", "added-asc", "reminder-asc", "reminder-desc"];
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  scheduled: { label: "Scheduled", className: "text-blue-500" },
-  sent:       { label: "Sent",      className: "text-green-600" },
-  failed:     { label: "Failed",    className: "text-red-500" },
-  canceled:   { label: "",  className: "text-muted-foreground" },
-};
-
 export default function Library() {
   const navigate = useNavigate();
 
@@ -407,6 +400,7 @@ export default function Library() {
                                       disabled
                                       variant="compact"
                                       reminderAt={bookmark.reminderAt}
+                                      status={bookmark.reminderStatus ?? null}
                                       onChange={async () => { }}
                                     />
                                   </span>
@@ -419,6 +413,7 @@ export default function Library() {
                               <ReminderPopover
                                 variant="compact"
                                 reminderAt={bookmark.reminderAt}
+                                status={bookmark.reminderStatus ?? null}
                                 onChange={async (value) => {
                                   try {
                                     if (value !== null) {
@@ -441,15 +436,6 @@ export default function Library() {
                               />
                             )
                           }
-                          {(() => {
-                            const cfg = bookmark.reminderStatus ? STATUS_CONFIG[bookmark.reminderStatus] : undefined;
-                            if (!cfg) return null;
-                            return (
-                              <span className={`text-[10px] font-medium leading-none ${cfg.className}`}>
-                                {cfg.label}
-                              </span>
-                            );
-                          })()}
                         </div>
                       </td>
                       <td className="py-3 text-right">
