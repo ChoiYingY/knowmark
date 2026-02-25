@@ -19,7 +19,7 @@ export function EffortChip({ effort, className }: EffortChipProps) {
       ? "Light read (~5m)"
       : normalizedEffort === "medium"
       ? "Steady read (~10m)"
-      : "Deep read (~20m)";
+      : "Deep read (~20m+)";
 
   return (
     <span

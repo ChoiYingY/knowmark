@@ -21,6 +21,7 @@ import { listBookmarksQuery, listBookmarksWithRemindersQuery } from "@/services/
 import { BOOKMARK_CATEGORIES } from "@/types/bookmark";
 import { Input } from "@/components/ui/input";
 import { CATEGORY_STYLES, NEUTRAL_CATEGORY_STYLE } from "@/types/bookmark";
+import { EffortChip } from "@/components/ui/custom/EffortChip";
 
 type BookmarkLike = {
   _id: unknown;
@@ -29,6 +30,7 @@ type BookmarkLike = {
   title?: string | null;
   aiSummary?: string | null;
   category?: string | null;
+  effort?: "short" | "medium" | "long" | null;
   reminderAt?: string | number | Date | null;
   createdAt?: string | number | Date | null;
   updatedAt?: string | number | Date | null;
@@ -439,10 +441,9 @@ const displayCategories: Array<[string, number]> =
                         >
                           {normalizeCategory(primaryFocusItem.bookmark.category)}
                         </Badge>
-                        <span className="flex items-center gap-1 font-medium text-primary">
-                          <Clock className="h-3 w-3" />
-                          {format(primaryFocusItem.reminderDate, "MMM d, h:mm a")}
-                        </span>
+                        {primaryFocusItem.bookmark.effort && (
+                          <EffortChip effort={primaryFocusItem.bookmark.effort} />
+                        )}
                       </div>
 
                       <div className="pt-1">
@@ -481,12 +482,15 @@ const displayCategories: Array<[string, number]> =
                           </div>
 
                           <div className="mt-2 flex items-center justify-between gap-2">
-                            <Badge
-                              variant="outline"
-                              className={`h-5 px-1.5 text-[10px] ${CATEGORY_STYLES[normalizeCategory(bookmark.category)] ?? NEUTRAL_CATEGORY_STYLE}`}
-                            >
-                              {normalizeCategory(bookmark.category)}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="outline"
+                                className={`h-5 px-1.5 text-[10px] ${CATEGORY_STYLES[normalizeCategory(bookmark.category)] ?? NEUTRAL_CATEGORY_STYLE}`}
+                              >
+                                {normalizeCategory(bookmark.category)}
+                              </Badge>
+                              {bookmark.effort && <EffortChip effort={bookmark.effort} />}
+                            </div>
 
                             <Button
                               size="sm"
@@ -674,16 +678,22 @@ const displayCategories: Array<[string, number]> =
                         <span className="truncate text-xs text-muted-foreground">{bookmark.url}</span>
                       </div>
 
-                      <div className="flex shrink-0 items-center gap-3 pl-4">
+                      <div className="mt-2 flex items-center justify-between gap-2">
                         <Badge
                           variant="outline"
                           className={`h-5 px-1.5 text-[10px] ${CATEGORY_STYLES[normalizeCategory(bookmark.category)] ?? NEUTRAL_CATEGORY_STYLE}`}
                         >
                           {normalizeCategory(bookmark.category)}
                         </Badge>
-                        <span className="w-20 text-right text-[10px] text-muted-foreground">
-                          {formatCreatedAgo(bookmark.createdAt)}
-                        </span>
+
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => openBookmark(bookmark.url)}
+                        >
+                          Read <ArrowRight className="ml-1 h-3 w-3" />
+                        </Button>
                       </div>
                     </div>
                   ))}
