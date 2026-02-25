@@ -10,6 +10,7 @@ import {
   fetchPageTitleAction,
   createBookmarkMutation,
   getByNormalizedUrlQuery,
+  previewEnrichmentAction,
 } from "@/services/bookmarkService";
 import type { BookmarkPreview, BookmarkCategory } from "@/types/bookmark";
 import { useAutoAnonymousAuth } from "@/hooks/useAutoAnonymousAuth";
@@ -103,6 +104,7 @@ export default function SaveLink() {
   const navigate = useNavigate();
   const fetchTitle = useAction(fetchPageTitleAction);
   const createBookmark = useMutation(createBookmarkMutation);
+  const getEnrichment = useAction(previewEnrichmentAction);
 
   // Single-link state
   const [inputValue, setInputValue] = useState("");
@@ -138,17 +140,19 @@ export default function SaveLink() {
   const bulkReadyCount = bulkLineResults.filter((item) => item.status === "ready").length;
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
-  // TODO in future: replace placeholder with AI enrichment action
   async function getPreviewEnrichment(params: {
     url: string;
     normalizedUrl: string;
     title: string;
   }): Promise<PreviewEnrichment> {
-    console.log(params);
-    return {
-      category: MOCK_CATEGORY,
-      aiSummary: MOCK_SUMMARY,
-    };
+    try {
+      const result = await getEnrichment(params);
+      console.log(result);
+      return result;
+    } catch {
+      console.log("use mock instead");
+      return { aiSummary: MOCK_SUMMARY, category: MOCK_CATEGORY };
+    }
   }
 
   async function handlePreview() {
@@ -403,15 +407,13 @@ export default function SaveLink() {
   }
 
   function handleRemoveBulkItem(indexToRemove: number) {
-    setBulkLineResults((prev) => {
-      const next = prev.filter((_, index) => index !== indexToRemove);
+    const next = bulkLineResults.filter((_, index) => index !== indexToRemove);
+    setBulkLineResults(next);
 
-      if (next.length === 0) {
-        setPreview({ status: "idle" });
-      }
-
-      return next;
-    });
+    if (next.length === 0) {
+      setPreview({ status: "idle" });
+      setIsDuplicate(false);
+    }
   }
 
   async function handleSave() {
@@ -537,8 +539,13 @@ export default function SaveLink() {
   const isProcessing = isPreviewing || isBulkProcessing || isSaving;
   
   if (!isAuthReady) {
-    showToast("Signing you in… please try again in a second.", "info");
-    return;
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center py-16">
+          <span className="inline-block h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </div>
+      </AppShell>
+    );
   }
 
   return (
@@ -565,6 +572,8 @@ export default function SaveLink() {
               // Clear previous bulk preview results when input changes
               if (bulkLineResults.length > 0) {
                 setBulkLineResults([]);
+                setPreview({ status: "idle" });
+                setIsDuplicate(false);
               }
             }}
             disabled={isProcessing}
