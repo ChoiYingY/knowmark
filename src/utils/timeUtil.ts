@@ -66,3 +66,13 @@ export function isPastManualSelection(
   const selected = buildDateFromParts(day, hour, minute, ampm);
   return selected.getTime() < Date.now();
 }
+
+export function formatReminderTime(ms: number): string {
+  return new Date(ms).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ReminderPopover } from "@/components/ui/ReminderPopover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { CATEGORY_STYLES, NEUTRAL_CATEGORY_STYLE } from "@/types/bookmark";
 
 interface LinkPreviewCardProps {
   // Loading mode
@@ -122,7 +123,11 @@ export function LinkPreviewCard({
         {/* Footer: Category + Reminder */}
         <div className="flex flex-wrap items-center gap-3 pt-1">
           {category && (
-            <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+            <span
+              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${
+                CATEGORY_STYLES[category ?? ""] ?? NEUTRAL_CATEGORY_STYLE
+              }`}
+            >
               {category}
             </span>
           )}

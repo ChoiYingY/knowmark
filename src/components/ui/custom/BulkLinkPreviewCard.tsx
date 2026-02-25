@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CATEGORY_STYLES, NEUTRAL_CATEGORY_STYLE } from "@/types/bookmark";
 
 // Matches BulkLineResult in save-link.tsx
 export interface BulkLineItem {
@@ -215,7 +216,11 @@ export function BulkLinkPreviewCard({
         </p>
         <div className="flex items-center gap-2">
           {category && (
-            <span className="inline-flex items-center rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            <span
+              className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] ${
+                CATEGORY_STYLES[category ?? ""] ?? NEUTRAL_CATEGORY_STYLE
+              }`}
+            >
               {category}
             </span>
           )}

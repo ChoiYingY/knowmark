@@ -16,6 +16,8 @@ import {
   cancelReminderEmailMutation,
 } from "@/services/bookmarkService";
 import { BOOKMARK_CATEGORIES } from "@/types/bookmark";
+import { formatReminderTime } from "@/utils/timeUtil";
+import { CATEGORY_STYLES, NEUTRAL_CATEGORY_STYLE } from "@/types/bookmark";
 
 type SortOrder = "added-desc" | "added-asc" | "reminder-asc" | "reminder-desc";
 
@@ -185,9 +187,38 @@ export default function Library() {
     });
   })();
 
+  const TooltipHelper = ({ buttonText, description }: { buttonText: string; description: string }) => (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="uppercase cursor-help border-b border-muted-foreground/30 hover:border-muted-foreground/60 hover:text-foreground transition-colors"
+          onClick={(e) => e.preventDefault()}
+        >
+          {buttonText}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        align="center"
+        sideOffset={8}
+        className="max-w-[220px] text-xs leading-snug"
+      >
+        {description}
+      </TooltipContent>
+    </Tooltip>
+  );
+
   const isLoading = bookmarks === undefined;
   const isEmpty = bookmarks !== undefined && bookmarks.length === 0;
   const isNoResults = !isEmpty && filtered.length === 0;
+
+  const tableHeaders = [
+    { buttonText: "Title", description: "Title of your bookmark", className: "w-[35%]" },
+    { buttonText: "Summary", description: "A short summary of your bookmark", className: "" },
+    { buttonText: "Category", description: "The category this bookmark belongs to", className: "w-[160px]" },
+    { buttonText: "Remind", description: "Set a reminder to come back to this link later", className: "w-[160px]" },
+  ];
 
   return (
     <AppShell>
@@ -306,11 +337,15 @@ export default function Library() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th scope="col" className="text-left py-2.5 pr-4 font-medium text-muted-foreground text-xs uppercase tracking-wide w-[35%]">Title</th>
-                  <th scope="col" className="text-left py-2.5 pr-4 font-medium text-muted-foreground text-xs uppercase tracking-wide">Summary</th>
-                  <th scope="col" className="text-left py-2.5 pr-4 font-medium text-muted-foreground text-xs uppercase tracking-wide w-[110px]">Category</th>
-                  <th scope="col" className="text-left py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide w-[160px]">Remind</th>
-                  <th scope="col" className="w-[40px]"></th>
+                  {tableHeaders.map(({ buttonText, description, className }, index) => (
+                    <th
+                      key={index}
+                      scope="col"
+                      className={`text-left py-2.5 font-medium text-muted-foreground text-xs tracking-wide ${className}`}
+                    >
+                      <TooltipHelper buttonText={buttonText} description={description} />
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -385,9 +420,32 @@ export default function Library() {
                         <p className="text-muted-foreground line-clamp-2 text-xs leading-relaxed">{bookmark.aiSummary}</p>
                       </td>
                       <td className="py-3 pr-4">
-                        <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-                          {bookmark.category}
-                        </span>
+                        {bookmark.category ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (categoryFilter === bookmark.category) {
+                                setCategoryFilter("All");
+                              } else {
+                                setCategoryFilter(bookmark.category!);
+                              }
+                            }}
+                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium cursor-pointer transition-colors ${
+                              CATEGORY_STYLES[bookmark.category] ?? NEUTRAL_CATEGORY_STYLE
+                            } ${
+                              categoryFilter === bookmark.category
+                                ? "ring-1 ring-offset-1 ring-current"
+                                : ""
+                            }`}
+                            title={
+                              categoryFilter === bookmark.category
+                                ? `Clear "${bookmark.category}" filter`
+                                : `Filter by "${bookmark.category}"`
+                            }
+                          >
+                            {bookmark.category}
+                          </button>
+                        ) : null}
                       </td>
                       <td className="py-3">
                         <div className="flex flex-col gap-0.5 items-start">
@@ -415,6 +473,7 @@ export default function Library() {
                                 reminderAt={bookmark.reminderAt}
                                 status={bookmark.reminderStatus ?? null}
                                 onChange={async (value) => {
+                                  const previousReminderAt = bookmark.reminderAt;
                                   try {
                                     if (value !== null) {
                                       if (!defaultReminderEmail) {
@@ -426,8 +485,14 @@ export default function Library() {
                                         reminderAt: value,
                                         reminderEmail: defaultReminderEmail,
                                       });
+                                      if (!previousReminderAt) {
+                                        toast.success(`Reminder scheduled for ${formatReminderTime(value)}`, { id: "library-reminder-success" });
+                                      } else {
+                                        toast.success(`Reminder updated to ${formatReminderTime(value)}`, { id: "library-reminder-success" });
+                                      }
                                     } else {
                                       await cancelReminderEmail({ bookmarkId: bookmark._id });
+                                      toast.success("Reminder canceled", { id: "library-reminder-success" });
                                     }
                                   } catch {
                                     toast.error("Failed to update reminder. Please try again.", { id: "library-reminder" });

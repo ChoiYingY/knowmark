@@ -18,6 +18,7 @@ import { LinkPreviewCard } from "@/components/ui/custom/LinkPreviewCard";
 import { PreviewStatePanel } from "@/components/ui/custom/PreviewStatePanel";
 import { BulkImportResult, BulkLinkPreviewCard } from "@/components/ui/custom/BulkLinkPreviewCard";
 import { useAppToast } from "@/hooks/useAppToast";
+import { formatReminderTime } from "@/utils/timeUtil";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -460,7 +461,7 @@ export default function SaveLink() {
             reminderAt,
             reminderEmail,
           });
-          showToast("Saved to your library!", "success");
+          showToast(`Saved! Reminder set for ${formatReminderTime(reminderAt)}.`, "success");
         } catch {
           // Bookmark was saved — only the reminder failed. Inform user, don't block navigation.
           showToast(
