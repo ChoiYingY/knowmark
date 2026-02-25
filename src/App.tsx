@@ -4,15 +4,36 @@ import Library from "./pages/library";
 import ReadingQueue from "./pages/reading-queue";
 import SaveLink from "./pages/save-link";
 import NotFound from "./pages/not-found";
+import { useAutoAnonymousAuth } from "./hooks/useAutoAnonymousAuth";
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { isAuthLoading, isAnonymousSigningIn, authError } = useAutoAnonymousAuth();
+
+  if (isAuthLoading || isAnonymousSigningIn) {
+    return <div className="p-4 text-sm text-muted-foreground">Signing in…</div>;
+  }
+
+  if (authError) {
+    return (
+      <div className="p-4 text-sm text-destructive">
+        Anonymous sign-in failed: {authError}
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 export default function App() {
   return (
-    <Routes>
-      <Route index element={<Dashboard />} />
-      <Route path="library" element={<Library />} />
-      <Route path="reading-queue" element={<ReadingQueue />} />
-      <Route path="save" element={<SaveLink />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <AuthGate>
+      <Routes>
+        <Route index element={<Dashboard />} />
+        <Route path="library" element={<Library />} />
+        <Route path="reading-queue" element={<ReadingQueue />} />
+        <Route path="save" element={<SaveLink />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AuthGate>
   );
 }

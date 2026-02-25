@@ -14,8 +14,6 @@ import {
   updateBookmarkTitleMutation,
 } from "@/services/bookmarkService";
 import { BOOKMARK_CATEGORIES } from "@/types/bookmark";
-import { useAutoAnonymousAuth } from "@/hooks/useAutoAnonymousAuth";
-import { useAppToast } from "@/hooks/useAppToast";
 
 type SortOrder = "added-desc" | "added-asc" | "reminder-asc" | "reminder-desc";
 
@@ -29,8 +27,6 @@ const SORT_LABELS: Record<SortOrder, string> = {
 const VALID_SORTS: SortOrder[] = ["added-desc", "added-asc", "reminder-asc", "reminder-desc"];
 
 export default function Library() {
-  const { isAuthReady } = useAutoAnonymousAuth();
-  const { showToast } = useAppToast();
   const navigate = useNavigate();
 
   const bookmarks = useQuery(listBookmarksQuery);
@@ -129,11 +125,6 @@ export default function Library() {
     setEditingId(null);
     setEditingTitle("");
   };
-
-  if (!isAuthReady) {
-    showToast("Signing you in… please try again in a second.", "info");
-    return;
-  }
 
   const filtered = (bookmarks ?? []).filter((b) => {
     const title = (b.title ?? "").toLowerCase();
