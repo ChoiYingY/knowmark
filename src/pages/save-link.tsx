@@ -13,7 +13,6 @@ import {
   previewEnrichmentAction,
 } from "@/services/bookmarkService";
 import type { BookmarkPreview, BookmarkCategory } from "@/types/bookmark";
-import { useAutoAnonymousAuth } from "@/hooks/useAutoAnonymousAuth";
 import { LinkPreviewCard } from "@/components/ui/custom/LinkPreviewCard";
 import { PreviewStatePanel } from "@/components/ui/custom/PreviewStatePanel";
 import { BulkImportResult, BulkLinkPreviewCard } from "@/components/ui/custom/BulkLinkPreviewCard";
@@ -97,7 +96,6 @@ function StatusPill({ icon, label, count, tone }: StatusPillProps) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function SaveLink() {
-  const { isAuthReady } = useAutoAnonymousAuth();
   const { showToast } = useAppToast();
 
   const convex = useConvex();
@@ -538,16 +536,6 @@ export default function SaveLink() {
 
   // ─── Render ──────────────────────────────────────────────────────────────────
   const isProcessing = isPreviewing || isBulkProcessing || isSaving;
-  
-  if (!isAuthReady) {
-    return (
-      <AppShell>
-        <div className="flex items-center justify-center py-16">
-          <span className="inline-block h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        </div>
-      </AppShell>
-    );
-  }
 
   return (
     <AppShell>

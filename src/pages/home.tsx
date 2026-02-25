@@ -18,7 +18,6 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { listBookmarksQuery, listBookmarksWithRemindersQuery } from "@/services/bookmarkService";
-import { useAutoAnonymousAuth } from "@/hooks/useAutoAnonymousAuth";
 import { BOOKMARK_CATEGORIES } from "@/types/bookmark";
 
 type BookmarkLike = {
@@ -142,7 +141,6 @@ function formatCreatedAgo(value: unknown): string {
 }
 
 export default function Dashboard() {
-  useAutoAnonymousAuth();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
 
   const navigate = useNavigate();
