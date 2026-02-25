@@ -76,3 +76,18 @@ export function formatReminderTime(ms: number): string {
     hour12: true,
   });
 }
+
+export function roundUpToQuarterHour(d: Date) {
+  const x = new Date(d);
+  x.setSeconds(0, 0);
+  const m = x.getMinutes();
+  const rounded = Math.ceil(m / 15) * 15;
+
+  if (rounded === 60) {
+    x.setHours(x.getHours() + 1);
+    x.setMinutes(0);
+  } else {
+    x.setMinutes(rounded);
+  }
+  return x;
+}

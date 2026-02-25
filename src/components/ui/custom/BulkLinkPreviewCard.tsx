@@ -10,14 +10,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORY_STYLES, NEUTRAL_CATEGORY_STYLE } from "@/types/bookmark";
+import { EffortChip } from "./EffortChip";
 
-// Matches BulkLineResult in save-link.tsx
 export interface BulkLineItem {
   originalLine: string;
   normalizedUrl?: string;
   title?: string;
   aiSummary?: string;
   category?: string;
+  effort?: string | null;
   status:
     | "processing"
     | "ready"
@@ -26,12 +27,7 @@ export interface BulkLineItem {
     | "error"
     | "saving"
     | "saved";
-  reason?:
-    | "already_saved"
-    | "duplicate_in_paste"
-    | "invalid_url"
-    | "fetch_failed"
-    | "save_failed";
+  reason?: string;
 }
 
 export interface BulkImportResult {
@@ -41,7 +37,7 @@ export interface BulkImportResult {
   errors: number;
 }
 
-interface BulkLinkPreviewCardProps {
+export interface BulkLinkPreviewCardProps {
   item: BulkLineItem;
   onRemove: () => void;
   disableRemove?: boolean;
@@ -52,7 +48,7 @@ export function BulkLinkPreviewCard({
   onRemove,
   disableRemove,
 }: BulkLinkPreviewCardProps) {
-  const { status, originalLine, title, category, reason } = item;
+  const { status, originalLine, title, category, reason, effort } = item;
 
   // Processing
   if (status === "processing") {
@@ -183,12 +179,15 @@ export function BulkLinkPreviewCard({
           <p className="truncate text-sm font-medium text-foreground">
             {title || originalLine}
           </p>
-          <Badge
-            variant="outline"
-            className="h-5 border-green-200 bg-green-100 px-1.5 text-[10px] text-green-700 dark:border-green-800 dark:bg-green-900/40 dark:text-green-300"
-          >
-            Saved
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="outline"
+              className="h-5 border-green-200 bg-green-100 px-1.5 text-[10px] text-green-700 dark:border-green-800 dark:bg-green-900/40 dark:text-green-300"
+            >
+              Saved
+            </Badge>
+            <EffortChip effort={effort}/>
+          </div>
         </div>
         <Button
           variant="ghost"
@@ -218,7 +217,7 @@ export function BulkLinkPreviewCard({
           {category && (
             <span
               className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] ${
-                CATEGORY_STYLES[category ?? ""] ?? NEUTRAL_CATEGORY_STYLE
+                CATEGORY_STYLES[category] ?? NEUTRAL_CATEGORY_STYLE
               }`}
             >
               {category}
@@ -230,6 +229,7 @@ export function BulkLinkPreviewCard({
           >
             Ready
           </Badge>
+          <EffortChip effort={effort}/>
         </div>
       </div>
 

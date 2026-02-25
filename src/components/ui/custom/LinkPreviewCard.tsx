@@ -1,17 +1,16 @@
-import { useEffect, useState } from "react";
 import { AlertTriangle, Sparkles, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ReminderPopover } from "@/components/ui/ReminderPopover";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CATEGORY_STYLES, NEUTRAL_CATEGORY_STYLE } from "@/types/bookmark";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EffortChip } from "./EffortChip";
 
-interface LinkPreviewCardProps {
-  // Loading mode
+export interface LinkPreviewCardProps {
   mode: "loading" | "ready";
+  // loading mode only:
   rawUrl?: string;
-
-  // Ready mode
+  // ready mode:
   title?: string;
   aiSummary?: string;
   category?: string;
@@ -23,57 +22,53 @@ interface LinkPreviewCardProps {
   showClearButton?: boolean;
   showReminder?: boolean;
   showSummary?: boolean;
+  effort?: string | null;
 }
 
-export function LinkPreviewCard({
-  mode,
-  rawUrl,
-  title,
-  aiSummary,
-  category,
-  isDuplicate,
-  isSaving,
-  reminderAt,
-  onReminderChange,
-  onClear,
-  showClearButton,
-  showReminder,
-  showSummary,
-}: LinkPreviewCardProps) {
-  const [defaultReminderEmail, setDefaultReminderEmail] = useState("");
-  const canScheduleReminder = defaultReminderEmail.trim().length > 0;
-
-  useEffect(() => {
-    try {
-      setDefaultReminderEmail(localStorage.getItem("defaultReminderEmail") ?? "");
-    } catch {
-      setDefaultReminderEmail("");
-    }
-  }, []);
+export function LinkPreviewCard(props: LinkPreviewCardProps) {
+  const {
+    mode,
+    rawUrl,
+    title,
+    aiSummary,
+    category,
+    isDuplicate,
+    isSaving,
+    reminderAt,
+    onReminderChange,
+    onClear,
+    showClearButton,
+    showReminder,
+    showSummary,
+    effort,
+  } = props;
 
   if (mode === "loading") {
     return (
-      <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+      <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
-          <div className="space-y-1 overflow-hidden">
-            <p className="text-sm font-medium">Fetching preview...</p>
-            {rawUrl && (
-              <p className="truncate text-xs text-muted-foreground">{rawUrl}</p>
-            )}
+          <div className="flex-1 space-y-1 overflow-hidden">
+             <Skeleton className="h-4 w-3/4" />
+             {rawUrl && (
+               <p className="truncate text-xs text-muted-foreground">{rawUrl}</p>
+             )}
           </div>
+        </div>
+        <div className="space-y-2 pt-2">
+           <Skeleton className="h-4 w-full" />
+           <Skeleton className="h-4 w-2/3" />
         </div>
       </div>
     );
   }
 
-  // Ready mode
   return (
     <div
       className={cn(
-        "relative rounded-lg border-2 bg-card p-4 shadow-sm transition-all",
+        "relative rounded-lg border bg-card p-4 shadow-sm transition-all",
         isDuplicate ? "border-yellow-400/70" : "border-border"
       )}
     >
@@ -92,10 +87,10 @@ export function LinkPreviewCard({
       <div className="space-y-3">
         {/* Duplicate Banner */}
         {isDuplicate && (
-          <div className="mb-2 flex items-center gap-2 rounded-md bg-yellow-50 p-2 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+          <div className="mb-2 flex items-center gap-2 rounded-md bg-yellow-50 p-2 text-yellow-800 border border-yellow-200/50">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span className="text-xs font-medium">
-              Already in your library - reminder kept.
+              Already saved - you can update the reminder below
             </span>
           </div>
         )}
@@ -111,54 +106,38 @@ export function LinkPreviewCard({
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Sparkles className="h-3 w-3 text-purple-500" />
               <span className="font-medium text-purple-600/90 dark:text-purple-400/90">
-                AI-generated summary
+                AI Summary
               </span>
             </div>
-            <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+            <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground italic">
               {aiSummary}
             </p>
           </div>
         )}
 
-        {/* Footer: Category + Reminder */}
-        <div className="flex flex-wrap items-center gap-3 pt-1">
+        {/* Footer: Category + Effort + Reminder */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           {category && (
             <span
               className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${
-                CATEGORY_STYLES[category ?? ""] ?? NEUTRAL_CATEGORY_STYLE
+                CATEGORY_STYLES[category] ?? NEUTRAL_CATEGORY_STYLE
               }`}
             >
               {category}
             </span>
           )}
 
+          <EffortChip effort={effort}/>
+
           {showReminder && onReminderChange && (
-            <>
-              {!isSaving && !canScheduleReminder ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex cursor-not-allowed">
-                      <ReminderPopover
-                        reminderAt={reminderAt ?? null}
-                        onChange={onReminderChange}
-                        disabled
-                        variant="detailed"
-                      />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" align="start">
-                    Please setup a reminder email in Dashboard first
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <ReminderPopover
-                  reminderAt={reminderAt ?? null}
-                  onChange={onReminderChange}
-                  disabled={isSaving}
-                  variant="detailed"
-                />
-              )}
-            </>
+            <div className="ml-auto">
+               <ReminderPopover
+                 reminderAt={reminderAt ?? null}
+                 onChange={onReminderChange}
+                 disabled={isSaving}
+                 variant="detailed"
+               />
+            </div>
           )}
         </div>
       </div>

@@ -19,6 +19,9 @@ export const BOOKMARK_CATEGORIES: BookmarkCategory[] = [
   "Uncategorized",
 ];
 
+export type Effort = "short" | "medium" | "long";
+export type BestTime = "today" | "this_week" | "weekend" | "later";
+
 export interface Bookmark {
   _id: Id<"bookmarks">;
   _creationTime: number;
@@ -31,6 +34,9 @@ export interface Bookmark {
   createdAt: number;
   updatedAt: number;
   reminderAt: number | null;
+  whyUseful?: string;
+  bestTime?: BestTime;
+  effort?: Effort;
 }
 
 export interface BookmarkPreview {
@@ -41,6 +47,9 @@ export interface BookmarkPreview {
   category: BookmarkCategory;
   reminderAt: number | null;
   isValid: boolean;
+  effort?: Effort | null;
+  whyUseful?: string | null;
+  bestTime?: BestTime | null;
 }
 
 export const CATEGORY_STYLES: Record<string, string> = {
