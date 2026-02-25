@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { useAction, useMutation, useConvex } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, FileX2, Copy, AlertCircle } from "lucide-react";
@@ -102,6 +103,7 @@ export default function SaveLink() {
   const navigate = useNavigate();
   const fetchTitle = useAction(fetchPageTitleAction);
   const createBookmark = useMutation(createBookmarkMutation);
+  const scheduleReminderEmail = useMutation(api.email.scheduleEmail);
   const getEnrichment = useAction(previewEnrichmentAction);
 
   // Single-link state
@@ -443,7 +445,32 @@ export default function SaveLink() {
         return;
       }
 
-      showToast("Saved to your library!", "success");
+      // Attempt reminder scheduling if a time and default email are both set
+      let reminderEmail: string | null = null;
+      try {
+        reminderEmail = localStorage.getItem("defaultReminderEmail");
+      } catch {
+        // localStorage unavailable — skip scheduling silently
+      }
+
+      if (reminderAt !== null && reminderEmail && result.id) {
+        try {
+          await scheduleReminderEmail({
+            bookmarkId: result.id,
+            reminderAt,
+            reminderEmail,
+          });
+          showToast("Saved to your library!", "success");
+        } catch {
+          // Bookmark was saved — only the reminder failed. Inform user, don't block navigation.
+          showToast(
+            "Saved! But reminder scheduling failed — check your reminder email in Dashboard.",
+            "error"
+          );
+        }
+      } else {
+        showToast("Saved to your library!", "success");
+      }
       navigate("/library");
     } catch {
       showToast("Failed to save. Please try again.", "error");

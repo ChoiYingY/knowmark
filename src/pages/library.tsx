@@ -7,11 +7,13 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ReminderPopover } from "@/components/ui/ReminderPopover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   listBookmarksQuery,
-  updateReminderMutation,
   deleteBookmarkMutation,
   updateBookmarkTitleMutation,
+  scheduleReminderEmailMutation,
+  cancelReminderEmailMutation,
 } from "@/services/bookmarkService";
 import { BOOKMARK_CATEGORIES } from "@/types/bookmark";
 
@@ -26,13 +28,21 @@ const SORT_LABELS: Record<SortOrder, string> = {
 
 const VALID_SORTS: SortOrder[] = ["added-desc", "added-asc", "reminder-asc", "reminder-desc"];
 
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  scheduled: { label: "Scheduled", className: "text-blue-500" },
+  sent:       { label: "Sent",      className: "text-green-600" },
+  failed:     { label: "Failed",    className: "text-red-500" },
+  canceled:   { label: "",  className: "text-muted-foreground" },
+};
+
 export default function Library() {
   const navigate = useNavigate();
 
   const bookmarks = useQuery(listBookmarksQuery);
-  const updateReminder = useMutation(updateReminderMutation);
   const deleteBookmark = useMutation(deleteBookmarkMutation);
   const updateBookmarkTitle = useMutation(updateBookmarkTitleMutation);
+  const scheduleReminderEmail = useMutation(scheduleReminderEmailMutation);
+  const cancelReminderEmail = useMutation(cancelReminderEmailMutation);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get("q") ?? "");
@@ -53,6 +63,18 @@ export default function Library() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [isSavingTitle, setIsSavingTitle] = useState(false);
+
+  // determine email existence
+  const [defaultReminderEmail, setDefaultReminderEmail] = useState("");
+  const canScheduleReminder = defaultReminderEmail.trim().length > 0;
+
+  useEffect(() => {
+    try {
+      setDefaultReminderEmail(localStorage.getItem("defaultReminderEmail") ?? "");
+    } catch {
+      setDefaultReminderEmail("");
+    }
+  }, []);
 
   useEffect(() => {
     const qFromUrl = searchParams.get("q") ?? "";
@@ -375,17 +397,60 @@ export default function Library() {
                         </span>
                       </td>
                       <td className="py-3">
-                        <ReminderPopover
-                          variant="compact"
-                          reminderAt={bookmark.reminderAt}
-                          onChange={async (value) => {
-                            try {
-                              await updateReminder({ bookmarkId: bookmark._id, reminderAt: value });
-                            } catch {
-                              toast.error("Failed to update reminder. Please try again.", { id: "library-reminder" });
-                            }
-                          }}
-                        />
+                        <div className="flex flex-col gap-0.5 items-start">
+                          {
+                            (!canScheduleReminder && !bookmark.reminderAt) ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex cursor-not-allowed">
+                                    <ReminderPopover
+                                      disabled
+                                      variant="compact"
+                                      reminderAt={bookmark.reminderAt}
+                                      onChange={async () => { }}
+                                    />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" align="start">
+                                  Set a reminder email in Dashboard first
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <ReminderPopover
+                                variant="compact"
+                                reminderAt={bookmark.reminderAt}
+                                onChange={async (value) => {
+                                  try {
+                                    if (value !== null) {
+                                      if (!defaultReminderEmail) {
+                                        toast.error("No default reminder email set. Please set one in Dashboard.", { id: "library-reminder" });
+                                        return;
+                                      }
+                                      await scheduleReminderEmail({
+                                        bookmarkId: bookmark._id,
+                                        reminderAt: value,
+                                        reminderEmail: defaultReminderEmail,
+                                      });
+                                    } else {
+                                      await cancelReminderEmail({ bookmarkId: bookmark._id });
+                                    }
+                                  } catch {
+                                    toast.error("Failed to update reminder. Please try again.", { id: "library-reminder" });
+                                  }
+                                }}
+                              />
+                            )
+                          }
+                          {(() => {
+                            const cfg = bookmark.reminderStatus ? STATUS_CONFIG[bookmark.reminderStatus] : undefined;
+                            if (!cfg) return null;
+                            return (
+                              <span className={`text-[10px] font-medium leading-none ${cfg.className}`}>
+                                {cfg.label}
+                              </span>
+                            );
+                          })()}
+                        </div>
                       </td>
                       <td className="py-3 text-right">
                         <button
