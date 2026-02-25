@@ -8,11 +8,12 @@
  * @module
  */
 
-import type * as aiEnrichmentActions from "../aiEnrichmentActions.js";
 import type * as auth from "../auth.js";
 import type * as bookmarkActions from "../bookmarkActions.js";
 import type * as bookmarks from "../bookmarks.js";
+import type * as email from "../email.js";
 import type * as http from "../http.js";
+import type * as openaiEnrichmentActions from "../openaiEnrichmentActions.js";
 
 import type {
   ApiFromModules,
@@ -21,11 +22,12 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  aiEnrichmentActions: typeof aiEnrichmentActions;
   auth: typeof auth;
   bookmarkActions: typeof bookmarkActions;
   bookmarks: typeof bookmarks;
+  email: typeof email;
   http: typeof http;
+  openaiEnrichmentActions: typeof openaiEnrichmentActions;
 }>;
 
 /**

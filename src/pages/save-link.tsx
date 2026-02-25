@@ -146,6 +146,7 @@ export default function SaveLink() {
     title: string;
   }): Promise<PreviewEnrichment> {
     try {
+      console.log(params);
       const result = await getEnrichment(params);
       console.log(result);
       return result;
