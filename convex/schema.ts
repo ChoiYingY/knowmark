@@ -14,6 +14,9 @@ const schema = defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
     reminderAt: v.union(v.number(), v.null()),
+    reminderEmail: v.optional(v.string()),
+    reminderStatus: v.optional(v.union(v.literal("scheduled"), v.literal("sent"), v.literal("failed"), v.literal("canceled"))),
+    reminderScheduledId: v.optional(v.id("_scheduled_functions")),
   })
     .index("by_userId", ["userId"])
     .index("by_userId_normalizedUrl", ["userId", "normalizedUrl"]),
