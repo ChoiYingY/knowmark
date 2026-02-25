@@ -17,6 +17,9 @@ const schema = defineSchema({
     reminderEmail: v.optional(v.string()),
     reminderStatus: v.optional(v.union(v.literal("scheduled"), v.literal("sent"), v.literal("failed"), v.literal("canceled"))),
     reminderScheduledId: v.optional(v.id("_scheduled_functions")),
+    whyUseful: v.optional(v.string()),
+    bestTime: v.optional(v.union(v.literal("today"), v.literal("this_week"), v.literal("weekend"), v.literal("later"))),
+    effort: v.optional(v.union(v.literal("short"), v.literal("medium"), v.literal("long"))),
   })
     .index("by_userId", ["userId"])
     .index("by_userId_normalizedUrl", ["userId", "normalizedUrl"]),

@@ -9,7 +9,7 @@ import {
   isAfter,
   isValid,
 } from "date-fns";
-import { ArrowRight, BookOpen, Clock, LayoutGrid, List, Mail } from "lucide-react";
+import { ArrowRight, BookOpen, Clock, LayoutGrid, List, Mail, ChevronDown, ChevronUp } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,6 +20,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { listBookmarksQuery, listBookmarksWithRemindersQuery } from "@/services/bookmarkService";
 import { BOOKMARK_CATEGORIES } from "@/types/bookmark";
 import { Input } from "@/components/ui/input";
+import { CATEGORY_STYLES, NEUTRAL_CATEGORY_STYLE } from "@/types/bookmark";
+import { EffortChip } from "@/components/ui/custom/EffortChip";
 
 type BookmarkLike = {
   _id: unknown;
@@ -28,6 +30,7 @@ type BookmarkLike = {
   title?: string | null;
   aiSummary?: string | null;
   category?: string | null;
+  effort?: "short" | "medium" | "long" | null;
   reminderAt?: string | number | Date | null;
   createdAt?: string | number | Date | null;
   updatedAt?: string | number | Date | null;
@@ -52,9 +55,10 @@ type CategoryBadgeListProps = {
 function CategoryBadgeList({
   isLoading,
   topCategories,
-  fallbackCategories,
   onCategoryClick,
 }: CategoryBadgeListProps) {
+  const [showEmpty, setShowEmpty] = useState(false);
+
   if (isLoading) {
     return (
       <div className="flex flex-wrap gap-2">
@@ -65,44 +69,83 @@ function CategoryBadgeList({
     );
   }
 
-  const hasRealData = topCategories.length > 0;
+  const nonZeroItems = topCategories.filter(([, count]) => count > 0);
+  const zeroItems = topCategories.filter(([, count]) => count === 0);
 
   return (
-    <div className="flex flex-col items-start gap-2 pl-5 pb-5">
-      {hasRealData
-        ? topCategories.map(([category, count]) =>
-            onCategoryClick ? (
-              <button
-                key={category}
-                type="button"
-                onClick={() => onCategoryClick(category)}
-                className="cursor-pointer"
-              >
+    <div className="flex flex-col items-start gap-2 pl-5 pb-5 pr-5">
+      {nonZeroItems.map(([category, count]) =>
+        onCategoryClick ? (
+          <button
+            key={category}
+            type="button"
+            onClick={() => onCategoryClick(category)}
+            className="cursor-pointer"
+          >
+            <Badge
+              variant="outline"
+              className={`transition-colors ${CATEGORY_STYLES[category] ?? NEUTRAL_CATEGORY_STYLE}`}
+            >
+              {category}
+              <span className="ml-1 opacity-60">({count})</span>
+            </Badge>
+          </button>
+        ) : (
+          <Badge
+            key={category}
+            variant="outline"
+            className={CATEGORY_STYLES[category] ?? NEUTRAL_CATEGORY_STYLE}
+          >
+            {category}
+            <span className="ml-1 opacity-60">({count})</span>
+          </Badge>
+        )
+      )}
+
+      {zeroItems.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowEmpty((v) => !v)}
+            className="mt-1 px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/50 rounded-md transition-colors border border-dashed border-border flex items-center justify-center gap-1.5"
+          >
+            {
+              showEmpty
+              ? <>Hide empty categories<ChevronUp size={16} /></>
+              : <>Show empty categories ({zeroItems.length})<ChevronDown size={16} /></>
+            }
+          </button>
+
+          {showEmpty &&
+            zeroItems.map(([category, count]) =>
+              onCategoryClick ? (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => onCategoryClick(category)}
+                  className="cursor-pointer"
+                >
+                  <Badge
+                    variant="outline"
+                    className={`transition-colors opacity-60 ${CATEGORY_STYLES[category] ?? NEUTRAL_CATEGORY_STYLE}`}
+                  >
+                    {category}
+                    <span className="ml-1 opacity-60">({count})</span>
+                  </Badge>
+                </button>
+              ) : (
                 <Badge
-                  variant="secondary"
-                  className="transition-colors hover:bg-secondary/80"
+                  key={category}
+                  variant="outline"
+                  className={`opacity-60 ${CATEGORY_STYLES[category] ?? NEUTRAL_CATEGORY_STYLE}`}
                 >
                   {category}
                   <span className="ml-1 opacity-60">({count})</span>
                 </Badge>
-              </button>
-            ) : (
-              <Badge key={category} variant="secondary">
-                {category}
-                <span className="ml-1 opacity-60">({count})</span>
-              </Badge>
-            )
-          )
-        : fallbackCategories.map((category) => (
-            <Badge
-              key={category}
-              variant="outline"
-              className="opacity-60"
-            >
-              {category}
-              <span className="ml-1 opacity-60">(0)</span>
-            </Badge>
-          ))}
+              )
+            )}
+        </>
+      )}
     </div>
   );
 }
@@ -220,6 +263,19 @@ export default function Dashboard() {
       return a[0].localeCompare(b[0]);
     })
     .slice(0, 5);
+
+  // Count how many categories have at least 1 bookmark
+  const nonZeroCategoryCount = Object.values(categoryCounts).filter((c) => c >= 1).length;
+
+// If > 5 active categories → show top 5; otherwise → show all 7 (including 0-count)
+const displayCategories: Array<[string, number]> =
+  nonZeroCategoryCount > 5
+    ? topCategories
+    : BOOKMARK_CATEGORIES.map((cat): [string, number] => [cat, categoryCounts[cat] ?? 0]).sort((a, b) => {
+        const countDiff = b[1] - a[1];
+        if (countDiff !== 0) return countDiff;
+        return a[0].localeCompare(b[0]);
+      });
 
   // Focus Now prioritization (reminder-timing only)
   const now = new Date();
@@ -379,13 +435,15 @@ export default function Dashboard() {
                       </div>
 
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <Badge variant="outline" className="font-normal">
+                        <Badge
+                          variant="outline"
+                          className={`font-normal ${CATEGORY_STYLES[normalizeCategory(primaryFocusItem.bookmark.category)] ?? NEUTRAL_CATEGORY_STYLE}`}
+                        >
                           {normalizeCategory(primaryFocusItem.bookmark.category)}
                         </Badge>
-                        <span className="flex items-center gap-1 font-medium text-primary">
-                          <Clock className="h-3 w-3" />
-                          {format(primaryFocusItem.reminderDate, "MMM d, h:mm a")}
-                        </span>
+                        {primaryFocusItem.bookmark.effort && (
+                          <EffortChip effort={primaryFocusItem.bookmark.effort} />
+                        )}
                       </div>
 
                       <div className="pt-1">
@@ -424,9 +482,15 @@ export default function Dashboard() {
                           </div>
 
                           <div className="mt-2 flex items-center justify-between gap-2">
-                            <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
-                              {normalizeCategory(bookmark.category)}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="outline"
+                                className={`h-5 px-1.5 text-[10px] ${CATEGORY_STYLES[normalizeCategory(bookmark.category)] ?? NEUTRAL_CATEGORY_STYLE}`}
+                              >
+                                {normalizeCategory(bookmark.category)}
+                              </Badge>
+                              {bookmark.effort && <EffortChip effort={bookmark.effort} />}
+                            </div>
 
                             <Button
                               size="sm"
@@ -567,7 +631,7 @@ export default function Dashboard() {
 
             <CategoryBadgeList
               isLoading={isLoading}
-              topCategories={topCategories}
+              topCategories={displayCategories}
               fallbackCategories={BOOKMARK_CATEGORIES}
               onCategoryClick={(category) =>
                 navigate(`/library?category=${encodeURIComponent(category)}`)
@@ -614,13 +678,22 @@ export default function Dashboard() {
                         <span className="truncate text-xs text-muted-foreground">{bookmark.url}</span>
                       </div>
 
-                      <div className="flex shrink-0 items-center gap-3 pl-4">
-                        <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <Badge
+                          variant="outline"
+                          className={`h-5 px-1.5 text-[10px] ${CATEGORY_STYLES[normalizeCategory(bookmark.category)] ?? NEUTRAL_CATEGORY_STYLE}`}
+                        >
                           {normalizeCategory(bookmark.category)}
                         </Badge>
-                        <span className="w-20 text-right text-[10px] text-muted-foreground">
-                          {formatCreatedAgo(bookmark.createdAt)}
-                        </span>
+
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => openBookmark(bookmark.url)}
+                        >
+                          Read <ArrowRight className="ml-1 h-3 w-3" />
+                        </Button>
                       </div>
                     </div>
                   ))}

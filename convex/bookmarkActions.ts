@@ -236,16 +236,6 @@ function isUsableFetchedTitle(raw: string | null, parsedUrl: URL): boolean {
   return true;
 }
 
-function cleanFetchedTitle(raw: string): string {
-  return decodeHtmlEntities(raw)
-    .replace(/\s+/g, " ")
-    .trim()
-    // Strip common suffixes
-    .replace(/\s+[-|·]\s+(reddit|x|twitter)$/i, "")
-    .replace(/\s+\/\s+(x|twitter)$/i, "")
-    .trim();
-}
-
 function humanizeSlug(input: string): string {
   return decodeURIComponentSafe(input)
     .replace(/\+/g, " ")
@@ -257,6 +247,10 @@ function humanizeSlug(input: string): string {
 
 function decodeHtmlEntities(input: string): string {
   return input
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&ensp;|&emsp;|&thinsp;/gi, " ")
+    .replace(/&ndash;/gi, "–")
+    .replace(/&mdash;/gi, "—")
     .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
@@ -270,6 +264,17 @@ function decodeHtmlEntities(input: string): string {
       const code = Number.parseInt(hex, 16);
       return Number.isFinite(code) ? String.fromCodePoint(code) : full;
     });
+}
+
+function cleanFetchedTitle(raw: string): string {
+  // NBSP char -> normal space
+  return decodeHtmlEntities(raw)
+    .replace(/\u00a0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\s+[-|·]\s+(reddit|x|twitter)$/i, "")
+    .replace(/\s+\/\s+(x|twitter)$/i, "")
+    .trim();
 }
 
 function decodeURIComponentSafe(input: string): string {

@@ -13,11 +13,12 @@ import {
   getByNormalizedUrlQuery,
   previewEnrichmentAction,
 } from "@/services/bookmarkService";
-import type { BookmarkPreview, BookmarkCategory } from "@/types/bookmark";
+import type { BookmarkPreview, BookmarkCategory, Effort, BestTime } from "@/types/bookmark";
 import { LinkPreviewCard } from "@/components/ui/custom/LinkPreviewCard";
 import { PreviewStatePanel } from "@/components/ui/custom/PreviewStatePanel";
 import { BulkImportResult, BulkLinkPreviewCard } from "@/components/ui/custom/BulkLinkPreviewCard";
 import { useAppToast } from "@/hooks/useAppToast";
+import { formatReminderTime } from "@/utils/timeUtil";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,17 +52,26 @@ interface BulkLineResult {
   category?: BookmarkCategory;
   status: BulkLineStatus;
   reason?: BulkLineReason;
+  effort?: Effort | null;
+  whyUseful?: string | null;
+  bestTime?: BestTime | null;
 }
 
 type PreviewEnrichment = {
   aiSummary: string;
   category: string;
+  effort?: Effort | null;
+  whyUseful?: string | null;
+  bestTime?: BestTime | null;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MOCK_SUMMARY = "A useful resource saved for later reading.";
 const MOCK_CATEGORY: BookmarkCategory = "Uncategorized";
+const MOCK_WHY_USEFUL = "Worth revisiting to explore the key ideas in more depth.";
+const MOCK_BEST_TIME = "later";
+const MOCK_EFFORT = "medium";
 
 // ─── Sub Component ────────────────────────────────────────────────────────────
 
@@ -152,7 +162,7 @@ export default function SaveLink() {
       return result;
     } catch {
       console.log("use mock instead");
-      return { aiSummary: MOCK_SUMMARY, category: MOCK_CATEGORY };
+      return { aiSummary: MOCK_SUMMARY, whyUseful: MOCK_WHY_USEFUL, bestTime: MOCK_BEST_TIME, effort: MOCK_EFFORT, category: MOCK_CATEGORY };
     }
   }
 
@@ -205,6 +215,9 @@ export default function SaveLink() {
             aiSummary: "", // duplicate preview should not show summary
             category: (existing.category ?? MOCK_CATEGORY) as BookmarkCategory,
             reminderAt: existing.reminderAt ?? null,
+            effort: existing.effort ?? null,
+            whyUseful: existing.whyUseful ?? null,
+            bestTime: existing.bestTime ?? null,
             isValid: true,
           },
         });
@@ -235,6 +248,9 @@ export default function SaveLink() {
           title: titleResult.title,
           aiSummary: enrichment.aiSummary,
           category: enrichment.category as BookmarkCategory,
+          effort: enrichment.effort ?? null,
+          whyUseful: enrichment.whyUseful ?? null,
+          bestTime: enrichment.bestTime ?? null,
           reminderAt: null,
           isValid: true,
         },
@@ -376,6 +392,9 @@ export default function SaveLink() {
         title,
         aiSummary: enrichment.aiSummary,
         category: enrichment.category as BookmarkCategory,
+        effort: enrichment.effort ?? null,
+        whyUseful: enrichment.whyUseful ?? null,
+        bestTime: enrichment.bestTime ?? null,
         status: "ready",
       };
       setBulkLineResults([...results]);
@@ -435,6 +454,9 @@ export default function SaveLink() {
         title: preview.data.title,
         aiSummary: preview.data.aiSummary,
         category: preview.data.category,
+        effort: preview.data.effort ?? undefined,
+        whyUseful: preview.data.whyUseful ?? undefined,
+        bestTime: preview.data.bestTime ?? undefined,
         reminderAt: reminderAt ?? undefined,
       });
 
@@ -460,7 +482,7 @@ export default function SaveLink() {
             reminderAt,
             reminderEmail,
           });
-          showToast("Saved to your library!", "success");
+          showToast(`Saved! Reminder set for ${formatReminderTime(reminderAt)}.`, "success");
         } catch {
           // Bookmark was saved — only the reminder failed. Inform user, don't block navigation.
           showToast(
@@ -507,6 +529,9 @@ export default function SaveLink() {
           title: item.title ?? item.originalLine,
           aiSummary: item.aiSummary ?? MOCK_SUMMARY,
           category: (item.category ?? MOCK_CATEGORY) as BookmarkCategory,
+          effort: item.effort ?? undefined,
+          whyUseful: item.whyUseful ?? undefined,
+          bestTime: item.bestTime ?? undefined,
           reminderAt: undefined,
         });
 
@@ -692,6 +717,7 @@ export default function SaveLink() {
             title={preview.data.title}
             aiSummary={preview.data.aiSummary}
             category={preview.data.category}
+            effort={preview?.data?.effort ?? null}
             isDuplicate={isDuplicate}
             isSaving={isSaving}
             reminderAt={reminderAt}

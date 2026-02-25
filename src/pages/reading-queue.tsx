@@ -7,6 +7,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { listBookmarksWithRemindersQuery } from "@/services/bookmarkService";
+import { CATEGORY_STYLES, NEUTRAL_CATEGORY_STYLE } from "@/types/bookmark";
 
 export default function ReadingQueuePage() {
   const navigate = useNavigate();
@@ -128,9 +129,11 @@ export default function ReadingQueuePage() {
                     {b.title}
                   </a>
                 </div>
-                <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground whitespace-nowrap">
-                  {b.category}
-                </span>
+                {b.category && (
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] whitespace-nowrap ${CATEGORY_STYLES[b.category] ?? NEUTRAL_CATEGORY_STYLE}`}>
+                    {b.category}
+                  </span>
+                )}
              </div>
              {showSummary && b.aiSummary && (
                <p className="text-xs text-muted-foreground line-clamp-1">{b.aiSummary}</p>

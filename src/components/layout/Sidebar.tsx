@@ -6,7 +6,7 @@ export function Sidebar() {
   return (
     <aside className="w-[220px] fixed h-full flex flex-col border-r border-border bg-sidebar-background text-sidebar-foreground">
       <div className="p-6">
-        <h1 className="text-xl font-bold tracking-tight">Knowmark</h1>
+        <h1 className="text-xl font-bold tracking-tight"><NavLink to="/">Knowmark</NavLink></h1>
       </div>
 
       <nav className="flex-1 px-3 py-2 space-y-1">
