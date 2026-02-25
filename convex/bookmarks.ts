@@ -57,6 +57,9 @@ export const getByNormalizedUrl = query({
       title: bookmark.title ?? bookmark.url,
       category: bookmark.category ?? "Uncategorized",
       reminderAt: bookmark.reminderAt ?? null,
+      effort: bookmark.effort ?? null,
+      whyUseful: bookmark.whyUseful ?? null,
+      bestTime: bookmark.bestTime ?? null,
       createdAt: bookmark.createdAt ?? null,
     };
   },
@@ -69,6 +72,9 @@ export const createBookmark = mutation({
     title: v.string(),
     aiSummary: v.string(),
     category: v.string(),
+    whyUseful: v.optional(v.string()),
+    bestTime: v.optional(v.string()),
+    effort: v.optional(v.string()),
     reminderAt: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
@@ -99,6 +105,24 @@ export const createBookmark = mutation({
       };
     }
 
+    const VALID_BEST_TIMES = ["today", "this_week", "weekend", "later"] as const;
+    const VALID_EFFORTS = ["short", "medium", "long"] as const;
+
+    const whyUseful =
+      typeof args.whyUseful === "string" && args.whyUseful.trim().length > 0
+        ? args.whyUseful.trim()
+        : "Worth revisiting to explore the key ideas in more depth.";
+
+    const argsBestTime = args.bestTime as (typeof VALID_BEST_TIMES)[number];
+    const bestTime = VALID_BEST_TIMES.includes(argsBestTime)
+      ? (argsBestTime)
+      : "later";
+
+    const argsEffort = args.effort as (typeof VALID_EFFORTS)[number];
+    const effort = VALID_EFFORTS.includes(argsEffort)
+      ? (argsEffort)
+      : "medium";
+
     const now = Date.now();
     const newId = await ctx.db.insert("bookmarks", {
       userId,
@@ -107,6 +131,9 @@ export const createBookmark = mutation({
       title: args.title,
       aiSummary: args.aiSummary,
       category: args.category,
+      whyUseful,
+      bestTime,
+      effort,
       reminderAt: args.reminderAt ?? null,
       createdAt: now,
       updatedAt: now,

@@ -7,14 +7,26 @@ import {
 import * as Popover from "@radix-ui/react-popover";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
-import { format, addDays, startOfDay, isSameDay } from "date-fns";
+import {
+  format,
+  addDays,
+  startOfDay,
+  isSameDay,
+  addHours,
+  setHours,
+  setMinutes,
+  nextSaturday,
+  nextMonday,
+  startOfMonth,
+  isSameMonth
+} from "date-fns";
 import { CalendarDays, X, Info } from "lucide-react";
-import { useState, type MouseEvent } from "react";
+import { useState, type MouseEvent, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Meridiem,
   buildDateFromParts, formatSlotLabel,
-  isPastManualSelection, roundUpToNextHalfHour, to12HourParts
+  isPastManualSelection, roundUpToNextHalfHour, roundUpToQuarterHour, to12HourParts
 } from "@/utils/timeUtil";
 
 interface ReminderPopoverProps {
@@ -83,6 +95,17 @@ export function ReminderPopover({
   const [hour, setHour] = useState("9");
   const [minute, setMinute] = useState("00");
   const [ampm, setAmpm] = useState<Meridiem>("AM");
+  const timeItemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  const [month, setMonth] = useState<Date>(() =>
+    startOfMonth(reminderAt ? new Date(reminderAt) : new Date())
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    const slotKey = `${hour}:${minute}-${ampm}`;
+    scrollTimeIntoView(slotKey);
+  }, [open, selectedDay, hour, minute, ampm]);
 
   const isInvalidPastSelection = isPastManualSelection(
     selectedDay,
@@ -95,6 +118,16 @@ export function ReminderPopover({
 
   const isSlotSelected = (slot: TimeSlot) =>
     hour === slot.hour && minute === slot.minute && ampm === slot.ampm;
+
+  // scroll to selected time
+  const scrollTimeIntoView = (slotKey: string) => {
+    requestAnimationFrame(() => {
+      timeItemRefs.current[slotKey]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+  };
 
   // moved ABOVE visibleTimeSlots usage (fixes runtime error)
   const isSlotInPast = (slot: TimeSlot) => {
@@ -123,6 +156,7 @@ export function ReminderPopover({
         setHour(parts.hour);
         setMinute(parts.minute);
         setAmpm(parts.ampm);
+        setMonth(startOfMonth(reminderDate));
       } else {
         // New reminder: default to the next available slot within the visible range (9:00 AM–11:30 PM)
         const now = new Date();
@@ -153,6 +187,7 @@ export function ReminderPopover({
         setHour(parts.hour);
         setMinute(parts.minute);
         setAmpm(parts.ampm);
+        setMonth(startOfMonth(nextSlot));
       }
     }
 
@@ -181,32 +216,48 @@ export function ReminderPopover({
     setOpen(false);
   };
 
-  const handleQuickDate = (daysToAdd: number) => {
-    // Immediate set: Tomorrow / Next week at 9:00 AM
-    const base = addDays(new Date(), daysToAdd);
-    const d = startOfDay(base);
-    d.setHours(9, 0, 0, 0);
+  const handleQuickSelect = (date: Date) => {
+    const normalized = roundUpToQuarterHour(date);
+    setSelectedDay(startOfDay(normalized));
 
-    setSelectedDay(startOfDay(d));
-    setHour("9");
-    setMinute("00");
-    setAmpm("AM");
+    const parts = to12HourParts(normalized);
+    setHour(parts.hour);
+    setMinute(parts.minute);
+    setAmpm(parts.ampm);
+    setMonth(startOfMonth(date));
 
-    onChange(d.getTime());
-    setOpen(false);
+    const slotKey = `${parts.hour}:${parts.minute}-${parts.ampm}`;
+    scrollTimeIntoView(slotKey);
   };
 
-  const isTomorrow = (day: Date | undefined) =>
-    !!day && isSameDay(day, addDays(new Date(), 1));
+  // Optional: highlight the active quick option
+  const isQuickOptionActive = (date: Date) => {
+    if (!selectedDay) return false;
+    const selected = buildDateFromParts(selectedDay, hour, minute, ampm);
+    return Math.abs(selected.getTime() - date.getTime()) < 60 * 1000; // within 1 min
+  };
 
-  const isNextWeek = (day: Date | undefined) =>
-    !!day && isSameDay(day, addDays(new Date(), 7));
+  const getQuickOptions = () => {
+    const now = new Date();
+
+    const tonightAt8 = setHours(setMinutes(now, 0), 20);
+    const tonight = tonightAt8.getTime() <= now.getTime() ? addDays(tonightAt8, 1) : tonightAt8;
+
+    return [
+      { label: "In 1 hour", date: roundUpToQuarterHour(addHours(now, 1)) },
+      { label: "Tonight (8pm)", date: tonight },
+      { label: "Tomorrow (9am)", date: setHours(setMinutes(addDays(now, 1), 0), 9) },
+      { label: "This weekend", date: setHours(setMinutes(nextSaturday(now), 0), 9) },
+      { label: "Next week", date: setHours(setMinutes(nextMonday(now), 0), 9) },
+    ];
+  };
 
   const handleDateChange = (day: Date | undefined) => {
     if (!day) return;
 
     const normalized = startOfDay(day);
     setSelectedDay(normalized);
+    if (!isSameMonth(normalized, month)) setMonth(startOfMonth(normalized));
 
     const todayStart = startOfDay(new Date());
     const isToday = normalized.toDateString() === todayStart.toDateString();
@@ -292,7 +343,7 @@ export function ReminderPopover({
 
       <Popover.Portal>
         <Popover.Content
-          className="z-50 w-[430px] max-w-[calc(100vw-16px)] rounded-xl border border-border bg-card shadow-lg"
+          className="z-50 w-[400px] max-w-[calc(100vw-16px)] rounded-xl border border-border bg-card shadow-lg"
           sideOffset={8}
           align={variant === "compact" ? "end" : "start"}
           collisionPadding={8}
@@ -302,31 +353,27 @@ export function ReminderPopover({
             {/* Quick actions */}
             <div className="space-y-2">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Quick reminders
+                Quick select
               </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickDate(1)}
-                  className={`px-3 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${
-                    isTomorrow(selectedDay)
-                      ? "bg-accent text-accent-foreground"
-                      : "bg-secondary text-secondary-foreground hover:bg-accent"
-                  }`}
-                >
-                  Tomorrow
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDate(7)}
-                  className={`px-3 text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${
-                    isNextWeek(selectedDay)
-                      ? "bg-accent text-accent-foreground"
-                      : "bg-secondary text-secondary-foreground hover:bg-accent"
-                  }`}
-                >
-                  Next week
-                </button>
+              <div className="flex flex-wrap gap-2">
+                {getQuickOptions().map((opt) => {
+                  const active = isQuickOptionActive(opt.date);
+                  return (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      onClick={() => handleQuickSelect(opt.date)}
+                      className={cn(
+                        "px-2 py-1.5 text-xs font-medium rounded-md transition-colors",
+                        active
+                          ? "bg-accent text-accent-foreground"
+                          : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -341,8 +388,9 @@ export function ReminderPopover({
                   selected={selectedDay}
                   onSelect={handleDateChange}
                   disabled={{ before: startOfDay(new Date()) }}
-                  showOutsideDays={true}
-                  defaultMonth={selectedDay ?? new Date()}
+                  showOutsideDays={false}
+                  month={month}
+                  onMonthChange={setMonth}
                   classNames={{
                     months: "flex flex-col",
                     month: "space-y-2",
@@ -377,10 +425,14 @@ export function ReminderPopover({
                   {visibleTimeSlots.map((slot) => {
                     const selected = isSlotSelected(slot);
                     const disabledSlot = isSlotInPast(slot);
+                    const slotKey = `${slot.hour}:${slot.minute}-${slot.ampm}`;
 
                     return (
                       <button
-                        key={`${slot.hour}:${slot.minute}-${slot.ampm}`}
+                        key={slotKey}
+                        ref={(el) => {
+                          timeItemRefs.current[slotKey] = el;
+                        }}
                         type="button"
                         onClick={() => handleTimeSlotClick(slot)}
                         disabled={disabledSlot}

@@ -1,10 +1,6 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 
-const MOCK_SUMMARY = "A useful resource saved for later reading.";
-const MOCK_CATEGORY = "Uncategorized";
-const OPENAI_MODEL = "gpt-4o-mini";
-
 const ALLOWED_CATEGORIES = [
   "AI & Tech",
   "Career",
@@ -15,10 +11,28 @@ const ALLOWED_CATEGORIES = [
   "Uncategorized",
 ] as const;
 
+const ALLOWED_BEST_TIMES = ["today", "this_week", "weekend", "later"] as const;
+const ALLOWED_EFFORTS = ["short", "medium", "long"] as const;
+
+type Category = (typeof ALLOWED_CATEGORIES)[number];
+type BestTime = (typeof ALLOWED_BEST_TIMES)[number];
+type Effort = (typeof ALLOWED_EFFORTS)[number];
+
+/* Mock data */
+const MOCK_SUMMARY = "A useful resource saved for later reading.";
+const MOCK_CATEGORY: Category = "Uncategorized";
+const MOCK_WHY_USEFUL = "Worth revisiting to explore the key ideas in more depth.";
+const MOCK_BEST_TIME: BestTime = "later";
+const MOCK_EFFORT: Effort = "medium";
+const OPENAI_MODEL = "gpt-4o-mini";
+
 type PreviewEnrichmentResult = {
   aiSummary: string;
-  category: string;
-};
+  whyUseful: string;
+  bestTime: BestTime;
+  effort: Effort;
+  category: Category;
+}
 
 export const getPreviewEnrichment = action({
   args: {
@@ -28,23 +42,26 @@ export const getPreviewEnrichment = action({
   },
   handler: async (_ctx, args): Promise<PreviewEnrichmentResult> => {
     if (process.env.USE_AI !== "true") {
-      return { aiSummary: MOCK_SUMMARY, category: MOCK_CATEGORY };
+      return { aiSummary: MOCK_SUMMARY, whyUseful: MOCK_WHY_USEFUL, bestTime: MOCK_BEST_TIME, effort: MOCK_EFFORT, category: MOCK_CATEGORY };
     }
 
     const key = process.env.OPENAI_API_KEY;
     if (!key) {
-      return { aiSummary: MOCK_SUMMARY, category: MOCK_CATEGORY };
+      return { aiSummary: MOCK_SUMMARY, whyUseful: MOCK_WHY_USEFUL, bestTime: MOCK_BEST_TIME, effort: MOCK_EFFORT, category: MOCK_CATEGORY };
     }
 
     try {
-      const prompt = `You are a bookmark categorizer. Given a URL and title, return a JSON object with exactly two fields:
-- "aiSummary": a single sentence (max 20 words) describing what this bookmark is about
-- "category": one of these exact values: ${ALLOWED_CATEGORIES.join(", ")}
+      const prompt = `You are a bookmark enrichment assistant. Given a URL and title, return a JSON object with exactly five fields:
+- "aiSummary": one sentence (max 20 words) describing what this bookmark is about
+- "whyUseful": one sentence (max 20 words) explaining why it may be worth revisiting later
+- "bestTime": when to revisit — MUST be exactly one of: today, this_week, weekend, later
+- "effort": reading effort — MUST be exactly one of: short, medium, long
+- "category": MUST be exactly one of: ${ALLOWED_CATEGORIES.join(", ")}
 
 Title: ${args.title}
 URL: ${args.url}
 
-Respond with ONLY valid JSON. No markdown. No explanation.`;
+Respond with ONLY valid JSON. No markdown. No explanation. No extra fields.`
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -61,7 +78,7 @@ Respond with ONLY valid JSON. No markdown. No explanation.`;
             model: OPENAI_MODEL,
             messages: [{ role: "user", content: prompt }],
             temperature: 0.1,
-            max_tokens: 128,
+            max_tokens: 256,
           }),
           signal: controller.signal,
         });
@@ -71,7 +88,7 @@ Respond with ONLY valid JSON. No markdown. No explanation.`;
 
       if (!response.ok) {
         console.log("AI enrichment failed, using mock after fetch call");
-        return { aiSummary: MOCK_SUMMARY, category: MOCK_CATEGORY };
+        return { aiSummary: MOCK_SUMMARY, whyUseful: MOCK_WHY_USEFUL, bestTime: MOCK_BEST_TIME, effort: MOCK_EFFORT, category: MOCK_CATEGORY };
       }
 
       const data = await response.json() as {
@@ -84,7 +101,7 @@ Respond with ONLY valid JSON. No markdown. No explanation.`;
 
       if (!rawText) {
         console.log("AI enrichment failed, using mock here");
-        return { aiSummary: MOCK_SUMMARY, category: MOCK_CATEGORY };
+        return { aiSummary: MOCK_SUMMARY, whyUseful: MOCK_WHY_USEFUL, bestTime: MOCK_BEST_TIME, effort: MOCK_EFFORT, category: MOCK_CATEGORY };
       }
 
       const cleaned = rawText
@@ -99,7 +116,7 @@ Respond with ONLY valid JSON. No markdown. No explanation.`;
         parsed = JSON.parse(cleaned);
       } catch {
         console.log("AI enrichment failed, using mock in parsed JSON");
-        return { aiSummary: MOCK_SUMMARY, category: MOCK_CATEGORY };
+        return { aiSummary: MOCK_SUMMARY, whyUseful: MOCK_WHY_USEFUL, bestTime: MOCK_BEST_TIME, effort: MOCK_EFFORT, category: MOCK_CATEGORY };
       }
 
       const obj =
@@ -112,17 +129,34 @@ Respond with ONLY valid JSON. No markdown. No explanation.`;
           ? obj.aiSummary.trim()
           : MOCK_SUMMARY;
 
-      const category =
+      const category: Category =
         typeof obj.category === "string" &&
         (ALLOWED_CATEGORIES as readonly string[]).includes(obj.category)
-          ? obj.category
+          ? (obj.category as Category)
           : MOCK_CATEGORY;
 
+      const whyUseful =
+        typeof obj.whyUseful === "string" && obj.whyUseful.trim().length > 0
+          ? obj.whyUseful.trim()
+          : MOCK_WHY_USEFUL;
+
+      const bestTime: BestTime =
+        typeof obj.bestTime === "string" &&
+        (ALLOWED_BEST_TIMES as readonly string[]).includes(obj.bestTime)
+          ? (obj.bestTime as BestTime)
+          : MOCK_BEST_TIME;
+
+      const effort: Effort =
+        typeof obj.effort === "string" &&
+        (ALLOWED_EFFORTS as readonly string[]).includes(obj.effort)
+          ? (obj.effort as Effort)
+          : MOCK_EFFORT;
+
       console.log("AI enrichment succeeded");
-      return { aiSummary, category };
+      return { aiSummary, whyUseful, bestTime, effort, category };
     } catch {
       console.log("AI enrichment failed, using mock in catch statement");
-      return { aiSummary: MOCK_SUMMARY, category: MOCK_CATEGORY };
+      return { aiSummary: MOCK_SUMMARY, whyUseful: MOCK_WHY_USEFUL, bestTime: MOCK_BEST_TIME, effort: MOCK_EFFORT, category: MOCK_CATEGORY };
     }
   },
 });

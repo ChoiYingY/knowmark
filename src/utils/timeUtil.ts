@@ -66,3 +66,28 @@ export function isPastManualSelection(
   const selected = buildDateFromParts(day, hour, minute, ampm);
   return selected.getTime() < Date.now();
 }
+
+export function formatReminderTime(ms: number): string {
+  return new Date(ms).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+export function roundUpToQuarterHour(d: Date) {
+  const x = new Date(d);
+  x.setSeconds(0, 0);
+  const m = x.getMinutes();
+  const rounded = Math.ceil(m / 15) * 15;
+
+  if (rounded === 60) {
+    x.setHours(x.getHours() + 1);
+    x.setMinutes(0);
+  } else {
+    x.setMinutes(rounded);
+  }
+  return x;
+}

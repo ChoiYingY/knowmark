@@ -16,24 +16,24 @@ import {
   cancelReminderEmailMutation,
 } from "@/services/bookmarkService";
 import { BOOKMARK_CATEGORIES } from "@/types/bookmark";
+import { formatReminderTime } from "@/utils/timeUtil";
+import { CATEGORY_STYLES, NEUTRAL_CATEGORY_STYLE } from "@/types/bookmark";
+import { EffortChip } from "@/components/ui/custom/EffortChip";
 
-type SortOrder = "added-desc" | "added-asc" | "reminder-asc" | "reminder-desc";
+type SortOrder = "added-desc" | "added-asc" | "reminder-asc" | "reminder-desc" | "effort-asc" | "effort-desc";
 
 const SORT_LABELS: Record<SortOrder, string> = {
   "added-desc": "Added ↓",
   "added-asc": "Added ↑",
   "reminder-asc": "Reminder ↓",
   "reminder-desc": "Reminder ↑",
+  "effort-asc": "Effort ↑",
+  "effort-desc": "Effort ↓",
 };
 
-const VALID_SORTS: SortOrder[] = ["added-desc", "added-asc", "reminder-asc", "reminder-desc"];
+const VALID_SORTS: SortOrder[] = ["added-desc", "added-asc", "reminder-asc", "reminder-desc", "effort-asc", "effort-desc"];
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  scheduled: { label: "Scheduled", className: "text-blue-500" },
-  sent:       { label: "Sent",      className: "text-green-600" },
-  failed:     { label: "Failed",    className: "text-red-500" },
-  canceled:   { label: "",  className: "text-muted-foreground" },
-};
+type Effort = "short" | "medium" | "long";
 
 export default function Library() {
   const navigate = useNavigate();
@@ -49,6 +49,12 @@ export default function Library() {
   const [categoryFilter, setCategoryFilter] = useState<string>(
     () => searchParams.get("category") ?? "All"
   );
+  const [effortFilter, setEffortFilter] = useState<"short" | "medium" | "long" | null>(() => {
+    const raw = searchParams.get("effort");
+    if (raw === "light") return "short";
+    if (raw === "medium" || raw === "long") return raw;
+    return null;
+  });
 
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => {
     const sortFromUrl = searchParams.get("sort") as SortOrder | null;
@@ -80,10 +86,16 @@ export default function Library() {
     const qFromUrl = searchParams.get("q") ?? "";
     const categoryFromUrl = searchParams.get("category") ?? "All";
     const sortFromUrl = searchParams.get("sort") as SortOrder | null;
+    const effortFromUrl = searchParams.get("effort");
+    const mappedEffort: "short" | "medium" | "long" | null =
+      effortFromUrl === "light" ? "short" :
+      effortFromUrl === "medium" ? "medium" :
+      effortFromUrl === "long" ? "long" : null;
 
     setSearchQuery(qFromUrl);
     setCategoryFilter(categoryFromUrl);
     setSortOrder(sortFromUrl && VALID_SORTS.includes(sortFromUrl) ? sortFromUrl : "added-desc");
+    setEffortFilter(mappedEffort);
   }, [searchParams]);
 
   const [isSortOpen, setIsSortOpen] = useState(false);
@@ -111,8 +123,11 @@ export default function Library() {
     if (categoryFilter !== "All") next.set("category", categoryFilter);
     if (sortOrder !== "added-desc") next.set("sort", sortOrder);
 
+    const effortParamValue = effortFilter === "short" ? "light" : effortFilter ?? null;
+    if (effortParamValue) next.set("effort", effortParamValue);
+
     setSearchParams(next, { replace: true });
-  }, [searchQuery, categoryFilter, sortOrder, setSearchParams]);
+  }, [searchQuery, categoryFilter, sortOrder, effortFilter, setSearchParams]);
 
   const handleConfirmDelete = async () => {
     if (!pendingDeleteId) return;
@@ -160,7 +175,9 @@ export default function Library() {
     const category = b.category ?? "Uncategorized";
     const matchesCategory = categoryFilter === "All" || category === categoryFilter;
 
-    return matchesSearch && matchesCategory;
+    const matchesEffort = effortFilter === null || (b as any).effort === effortFilter;
+
+    return matchesSearch && matchesCategory && matchesEffort;
   });
 
   const sorted = (() => {
@@ -188,13 +205,56 @@ export default function Library() {
         if (bR !== null) return 1;
         return b._creationTime - a._creationTime;
       }
-      return 0;
+    if (sortOrder === "effort-asc") {
+      const rank = (e: string | undefined | null) =>
+        e === "short" ? 0 : e === "medium" ? 1 : e === "long" ? 2 : 99;
+      const diff = rank((a as any).effort) - rank((b as any).effort);
+      return diff !== 0 ? diff : b._creationTime - a._creationTime;
+    }
+    if (sortOrder === "effort-desc") {
+      const rank = (e: string | undefined | null) =>
+        e === "long" ? 0 : e === "medium" ? 1 : e === "short" ? 2 : 99;
+      const diff = rank((a as any).effort) - rank((b as any).effort);
+      return diff !== 0 ? diff : b._creationTime - a._creationTime;
+    }
+    return 0;
     });
   })();
+  
+
+  const TooltipHelper = ({ buttonText, description }: { buttonText: string; description: string }) => (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="uppercase cursor-help border-b border-muted-foreground/30 hover:border-muted-foreground/60 hover:text-foreground transition-colors"
+          onClick={(e) => e.preventDefault()}
+        >
+          {buttonText}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        align="center"
+        sideOffset={8}
+        className="max-w-[220px] text-xs leading-snug"
+      >
+        {description}
+      </TooltipContent>
+    </Tooltip>
+  );
 
   const isLoading = bookmarks === undefined;
   const isEmpty = bookmarks !== undefined && bookmarks.length === 0;
   const isNoResults = !isEmpty && filtered.length === 0;
+
+  const tableHeaders = [
+    { buttonText: "Title", description: "Title of your bookmark", className: "w-[35%]" },
+    { buttonText: "Summary", description: "A short summary of your bookmark", className: "" },
+    { buttonText: "Category", description: "The category this bookmark belongs to", className: "w-[160px]" },
+    { buttonText: "Effort", description: "Estimated reading effort", className: "w-[160px]" },
+    { buttonText: "Remind", description: "Set a reminder to come back to this link later", className: "w-[160px]" },
+  ];
 
   return (
     <AppShell>
@@ -313,11 +373,42 @@ export default function Library() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th scope="col" className="text-left py-2.5 pr-4 font-medium text-muted-foreground text-xs uppercase tracking-wide w-[35%]">Title</th>
-                  <th scope="col" className="text-left py-2.5 pr-4 font-medium text-muted-foreground text-xs uppercase tracking-wide">Summary</th>
-                  <th scope="col" className="text-left py-2.5 pr-4 font-medium text-muted-foreground text-xs uppercase tracking-wide w-[110px]">Category</th>
-                  <th scope="col" className="text-left py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide w-[160px]">Remind</th>
-                  <th scope="col" className="w-[40px]"></th>
+                  {tableHeaders.map((header, index) => {
+                    const { buttonText, description, className } = header;
+                    const sortKey = "sortKey" in header ? header.sortKey : undefined;
+                    
+                    return (
+                    <th
+                      key={index}
+                      scope="col"
+                      className={`text-left py-2.5 font-medium text-muted-foreground text-xs tracking-wide ${className}`}
+                    >
+                      {sortKey ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="uppercase cursor-pointer border-b border-muted-foreground/30 hover:border-muted-foreground/60 hover:text-foreground transition-colors flex items-center gap-0.5"
+                              onClick={() => {
+                                const ascending = `${sortKey}-asc` as SortOrder;
+                                const descending = `${sortKey}-desc` as SortOrder;
+                                setSortOrder(prev => prev === ascending ? descending : ascending);
+                              }}
+                            >
+                              {buttonText}
+                              {sortOrder === `${sortKey}-asc` && <span className="ml-0.5">↑</span>}
+                              {sortOrder === `${sortKey}-desc` && <span className="ml-0.5">↓</span>}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" align="center" sideOffset={8} className="max-w-[220px] text-xs leading-snug">
+                            {description}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <TooltipHelper buttonText={buttonText} description={description} />
+                      )}
+                    </th>
+                  )})}
                 </tr>
               </thead>
               <tbody>
@@ -392,9 +483,52 @@ export default function Library() {
                         <p className="text-muted-foreground line-clamp-2 text-xs leading-relaxed">{bookmark.aiSummary}</p>
                       </td>
                       <td className="py-3 pr-4">
-                        <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-                          {bookmark.category}
-                        </span>
+                        {bookmark.category ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (categoryFilter === bookmark.category) {
+                                setCategoryFilter("All");
+                              } else {
+                                setCategoryFilter(bookmark.category!);
+                              }
+                            }}
+                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium cursor-pointer transition-colors ${
+                              CATEGORY_STYLES[bookmark.category] ?? NEUTRAL_CATEGORY_STYLE
+                            } ${
+                              categoryFilter === bookmark.category
+                                ? "ring-1 ring-offset-1 ring-current"
+                                : ""
+                            }`}
+                            title={
+                              categoryFilter === bookmark.category
+                                ? `Clear "${bookmark.category}" filter`
+                                : `Filter by "${bookmark.category}"`
+                            }
+                          >
+                            {bookmark.category}
+                          </button>
+                        ) : null}
+                      </td>
+                      <td className="py-3 pr-4 hover:cursor-pointer">
+                        {bookmark.effort != null && (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const next = effortFilter === bookmark.effort ? null : bookmark.effort as Effort;
+                              setEffortFilter(next);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key !== "Enter" && e.key !== " ") return;
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const next = effortFilter === bookmark.effort ? null : bookmark.effort as Effort;
+                              setEffortFilter(next);
+                            }}
+                          >
+                            <EffortChip effort={bookmark.effort} />
+                          </div>
+                        )}
                       </td>
                       <td className="py-3">
                         <div className="flex flex-col gap-0.5 items-start">
@@ -407,6 +541,7 @@ export default function Library() {
                                       disabled
                                       variant="compact"
                                       reminderAt={bookmark.reminderAt}
+                                      status={bookmark.reminderStatus ?? null}
                                       onChange={async () => { }}
                                     />
                                   </span>
@@ -419,7 +554,9 @@ export default function Library() {
                               <ReminderPopover
                                 variant="compact"
                                 reminderAt={bookmark.reminderAt}
+                                status={bookmark.reminderStatus ?? null}
                                 onChange={async (value) => {
+                                  const previousReminderAt = bookmark.reminderAt;
                                   try {
                                     if (value !== null) {
                                       if (!defaultReminderEmail) {
@@ -431,8 +568,14 @@ export default function Library() {
                                         reminderAt: value,
                                         reminderEmail: defaultReminderEmail,
                                       });
+                                      if (!previousReminderAt) {
+                                        toast.success(`Reminder scheduled for ${formatReminderTime(value)}`, { id: "library-reminder-success" });
+                                      } else {
+                                        toast.success(`Reminder updated to ${formatReminderTime(value)}`, { id: "library-reminder-success" });
+                                      }
                                     } else {
                                       await cancelReminderEmail({ bookmarkId: bookmark._id });
+                                      toast.success("Reminder canceled", { id: "library-reminder-success" });
                                     }
                                   } catch {
                                     toast.error("Failed to update reminder. Please try again.", { id: "library-reminder" });
@@ -441,15 +584,6 @@ export default function Library() {
                               />
                             )
                           }
-                          {(() => {
-                            const cfg = bookmark.reminderStatus ? STATUS_CONFIG[bookmark.reminderStatus] : undefined;
-                            if (!cfg) return null;
-                            return (
-                              <span className={`text-[10px] font-medium leading-none ${cfg.className}`}>
-                                {cfg.label}
-                              </span>
-                            );
-                          })()}
                         </div>
                       </td>
                       <td className="py-3 text-right">

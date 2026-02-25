@@ -19,6 +19,9 @@ export const BOOKMARK_CATEGORIES: BookmarkCategory[] = [
   "Uncategorized",
 ];
 
+export type Effort = "short" | "medium" | "long";
+export type BestTime = "today" | "this_week" | "weekend" | "later";
+
 export interface Bookmark {
   _id: Id<"bookmarks">;
   _creationTime: number;
@@ -31,6 +34,9 @@ export interface Bookmark {
   createdAt: number;
   updatedAt: number;
   reminderAt: number | null;
+  whyUseful?: string;
+  bestTime?: BestTime;
+  effort?: Effort;
 }
 
 export interface BookmarkPreview {
@@ -41,4 +47,18 @@ export interface BookmarkPreview {
   category: BookmarkCategory;
   reminderAt: number | null;
   isValid: boolean;
+  effort?: Effort | null;
+  whyUseful?: string | null;
+  bestTime?: BestTime | null;
 }
+
+export const CATEGORY_STYLES: Record<string, string> = {
+  "AI & Tech":    "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100",
+  "Career":       "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100",
+  "Learning":     "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100",
+  "Health":       "bg-green-50 text-green-700 border-green-200 hover:bg-green-100",
+  "Productivity": "bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100",
+  "Finance":      "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100",
+  "Uncategorized":"bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100",
+};
+export const NEUTRAL_CATEGORY_STYLE = "bg-muted/40 text-muted-foreground border-border";

@@ -5,12 +5,37 @@ import type { Id } from "./_generated/dataModel";
 
 const SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send";
 const DEFAULT_FROM_NAME = "Knowmark";
+const DEFAULT_REMINDER_TEMPLATE_ID = "d-b5a7d1323aec4fd78f15734d92434732";
+const DEFAULT_URL = "https://4e6f74ca-2d4d-4db3-b0bd-e5c107297416.preview.vibeflow.ai/";
+
+export type ReminderEmailParams = {
+  bookmarkTitle: string;
+  bookmarkUrl: string;
+  summary: string;
+  whyUseful: string;
+  category: string;
+  effortText: string;
+  bestTimeLabel: string;
+  reminderUrl: string;
+  teamEmail: string;
+};
+
+export type ReminderTemplateData = ReminderEmailParams;
+
+export function subjectFromParams(p: ReminderEmailParams) {
+  const effort = (p.effortText ?? "").trim();
+  return effort
+    ? `Reading reminder: ${p.bookmarkTitle} (${effort})`
+    : `Reading reminder: ${p.bookmarkTitle}`;
+}
 
 type SendEmailArgs = {
   to: string;
   subject: string;
   text?: string;
   html?: string;
+  templateId?: string;
+  dynamicTemplateData?: ReminderTemplateData;
 };
 
 type SendEmailResult = {
@@ -18,8 +43,10 @@ type SendEmailResult = {
 };
 
 async function sendEmailImpl(args: SendEmailArgs): Promise<SendEmailResult> {
-  if (!args.text && !args.html) {
-    throw new Error("sendEmail: at least one of 'text' or 'html' is required");
+  const usingTemplate = !!args.templateId;
+
+  if (!usingTemplate && !args.text && !args.html) {
+    throw new Error("sendEmail: at least one of 'text' or 'html' is required when no templateId is provided");
   }
 
   const apiKey = process.env.SENDGRID_API_KEY;
@@ -34,26 +61,44 @@ async function sendEmailImpl(args: SendEmailArgs): Promise<SendEmailResult> {
 
   const fromName = process.env.SENDGRID_FROM_NAME ?? DEFAULT_FROM_NAME;
 
-  const content: Array<{ type: string; value: string }> = [];
-  if (args.text) {
-    content.push({ type: "text/plain", value: args.text });
-  }
-  if (args.html) {
-    content.push({ type: "text/html", value: args.html });
+  const personalization: {
+    to: Array<{ email: string }>;
+    dynamic_template_data?: ReminderTemplateData;
+  } = {
+    to: [{ email: args.to }],
+  };
+
+  if (usingTemplate && args.dynamicTemplateData) {
+    personalization.dynamic_template_data = args.dynamicTemplateData;
   }
 
-  const body = {
-    personalizations: [{ to: [{ email: args.to }] }],
+  const body: Record<string, unknown> = {
+    personalizations: [personalization],
     from: { email: fromEmail, name: fromName },
-    subject: args.subject,
-    content,
   };
+
+  if (usingTemplate) {
+    body.template_id = args.templateId;
+    // Some templates define subject internally. Keeping subject here is harmless and can help if your template doesn't override it.
+    body.subject = args.subject;
+  } else {
+    const content: Array<{ type: string; value: string }> = [];
+    if (args.text) {
+      content.push({ type: "text/plain", value: args.text });
+    }
+    if (args.html) {
+      content.push({ type: "text/html", value: args.html });
+    }
+
+    body.subject = args.subject;
+    body.content = content;
+  }
 
   const response = await fetch(SENDGRID_API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(body),
   });
@@ -73,6 +118,20 @@ export const sendEmail = action({
     subject: v.string(),
     text: v.optional(v.string()),
     html: v.optional(v.string()),
+    templateId: v.optional(v.string()),
+    dynamicTemplateData: v.optional(
+      v.object({
+        bookmarkTitle: v.string(),
+        bookmarkUrl: v.string(),
+        summary: v.string(),
+        whyUseful: v.string(),
+        category: v.string(),
+        effortText: v.string(),
+        bestTimeLabel: v.string(),
+        reminderUrl: v.string(),
+        teamEmail: v.string(),
+      })
+    ),
   },
   handler: async (_ctx, args): Promise<SendEmailResult> => {
     return sendEmailImpl(args);
@@ -141,26 +200,84 @@ export const triggerReminderEmail = internalAction({
       return;
     }
 
-    const title = bookmark.title || bookmark.url;
-    const summaryLine = bookmark.aiSummary ? `\n\nSummary: ${bookmark.aiSummary}` : "";
+    const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+    if (!fromEmail) {
+      throw new Error("sendEmail: SENDGRID_FROM_EMAIL is not configured");
+    }
 
-    const textBody =
-      `You asked to be reminded about:\n\n` +
-      `${title}\n` +
-      `${bookmark.url}` +
-      summaryLine;
+    // Resolve template id — throw clearly if not configured at all
+    const reminderTemplateId =
+      process.env.SENDGRID_REMINDER_TEMPLATE_ID ?? DEFAULT_REMINDER_TEMPLATE_ID;
+    if (!reminderTemplateId) {
+      throw new Error(
+        "triggerReminderEmail: template id not configured (set SENDGRID_REMINDER_TEMPLATE_ID env var or DEFAULT_REMINDER_TEMPLATE_ID constant)"
+      );
+    }
 
-    const htmlBody =
-      `<p>You asked to be reminded about:</p>` +
-      `<p><strong><a href="${bookmark.url}">${title}</a></strong></p>` +
-      (bookmark.aiSummary ? `<p><em>${bookmark.aiSummary}</em></p>` : "");
+    // ----------------------------
+    // Dynamic template variables (SendGrid)
+    // ----------------------------
+
+    const bookmarkTitle = bookmark.title || bookmark.url;
+    const bookmarkUrl = bookmark.url;
+
+    const summary = bookmark.aiSummary?.trim() || "Saved in Knowmark for later.";
+
+    // Keep `whyUseful` as the primary key (template expects it)
+    const whyUseful =
+      bookmark.whyUseful ??
+      (bookmark as any).whyHelpful ?? // fallback if you ever stored it under this name
+      "";
+
+    // Category: use stored category if you have it, else fallback
+    const category =
+      (bookmark as any).category ??
+      (bookmark as any).aiCategory ??
+      "Uncategorized";
+
+     // Best time label (template expects bestTimeLabel)
+    const bestTime = (bookmark as any).bestTime ?? "later";
+    const bestTimeLabel =
+      bestTime === "today" ? "Today" :
+      bestTime === "this_week" ? "This week" :
+      bestTime === "weekend" ? "Weekend" :
+      "Later";
+
+    // Effort text (template expects effortText)
+    const effort = (bookmark as any).effort ?? "short";
+
+    // If you already store estimateLen / effortText, prefer it; else derive.
+    const derivedEstimateLen =
+      effort === "short" ? 5 :
+      effort === "medium" ? 10 :
+      effort === "long" ? 20 :
+      10;
+
+    const effortText =
+      (bookmark as any).effortText ??
+      `Light read: ~${(bookmark as any).estimateLen ?? derivedEstimateLen}min+`;
+
+    // reminderUrl (template expects reminderUrl)
+    const reminderUrl = process.env.PRODUCTION_URL ?? DEFAULT_URL;
+
+    const teamEmail = process.env.SENDGRID_TEAM_EMAIL ?? fromEmail;
 
     try {
       await ctx.runAction(api.email.sendEmail, {
         to: bookmark.reminderEmail,
-        subject: `Reminder: ${title}`,
-        text: textBody,
-        html: htmlBody,
+        subject: `Knowmark reminder: ${bookmarkTitle}`,
+        templateId: reminderTemplateId,
+        dynamicTemplateData: {
+          bookmarkTitle,
+          bookmarkUrl,
+          summary,
+          category,
+          whyUseful,
+          effortText,
+          bestTimeLabel,
+          reminderUrl,
+          teamEmail,
+        },
       });
 
       await ctx.runMutation(internal.email.patchReminderAfterTrigger, {
@@ -184,7 +301,6 @@ export const triggerReminderEmail = internalAction({
     }
   },
 });
-
 export const scheduleEmail = mutation({
   args: {
     bookmarkId: v.id("bookmarks"),
