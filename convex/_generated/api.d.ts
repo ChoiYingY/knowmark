@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as aiEnrichmentActions from "../aiEnrichmentActions.js";
 import type * as auth from "../auth.js";
 import type * as bookmarkActions from "../bookmarkActions.js";
 import type * as bookmarks from "../bookmarks.js";
@@ -20,6 +21,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  aiEnrichmentActions: typeof aiEnrichmentActions;
   auth: typeof auth;
   bookmarkActions: typeof bookmarkActions;
   bookmarks: typeof bookmarks;
