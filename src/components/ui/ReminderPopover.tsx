@@ -1,3 +1,9 @@
+import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import * as Popover from "@radix-ui/react-popover";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
@@ -16,7 +22,26 @@ interface ReminderPopoverProps {
   onChange: (value: number | null) => void;
   disabled?: boolean;
   variant?: "compact" | "detailed";
+  status?: "scheduled" | "sent" | "failed" | "canceled" | null;
 }
+
+const statusClasses: Record<"scheduled" | "sent" | "failed" | "canceled", string> = {
+  scheduled:
+    "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300",
+  sent:
+    "border-green-200 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-300",
+  failed:
+    "border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300",
+  canceled:
+    "border-border bg-muted/40 text-muted-foreground hover:bg-muted/60",
+};
+
+const statusTooltip: Record<"scheduled" | "sent" | "failed" | "canceled", string> = {
+  scheduled: "Reminder scheduled",
+  sent: "Reminder sent",
+  failed: "Reminder failed",
+  canceled: "Reminder canceled",
+};
 
 type TimeSlot = {
   hour: string;
@@ -51,6 +76,7 @@ export function ReminderPopover({
   onChange,
   disabled,
   variant = "detailed",
+  status = null,
 }: ReminderPopoverProps) {
   const [open, setOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | undefined>();
@@ -98,8 +124,28 @@ export function ReminderPopover({
         setMinute(parts.minute);
         setAmpm(parts.ampm);
       } else {
-        // New reminder: default to today + next available 30-min slot
-        const nextSlot = roundUpToNextHalfHour(new Date());
+        // New reminder: default to the next available slot within the visible range (9:00 AM–11:30 PM)
+        const now = new Date();
+        const rounded = roundUpToNextHalfHour(now);
+
+        const roundedMinutes = rounded.getHours() * 60 + rounded.getMinutes();
+        const firstSlotMinutes = START_MINUTES; // 9:00 AM
+        const lastSlotMinutes = START_MINUTES + (TOTAL_SLOTS - 1) * SLOT_STEP; // 11:30 PM
+
+        let nextSlot: Date;
+
+        if (roundedMinutes < firstSlotMinutes) {
+          // Before 9:00 AM -> default to today 9:00 AM
+          nextSlot = new Date(now);
+          nextSlot.setHours(9, 0, 0, 0);
+        } else if (roundedMinutes > lastSlotMinutes) {
+          // After last slot -> default to tomorrow 9:00 AM
+          nextSlot = addDays(startOfDay(now), 1);
+          nextSlot.setHours(9, 0, 0, 0);
+        } else {
+          // Within slot range -> use next rounded half-hour
+          nextSlot = rounded;
+        }
 
         setSelectedDay(startOfDay(nextSlot));
 
@@ -162,57 +208,87 @@ export function ReminderPopover({
     const normalized = startOfDay(day);
     setSelectedDay(normalized);
 
-    const isToday = normalized.toDateString() === startOfDay(new Date()).toDateString();
+    const todayStart = startOfDay(new Date());
+    const isToday = normalized.toDateString() === todayStart.toDateString();
 
     if (isToday) {
-      const nextSlot = roundUpToNextHalfHour(new Date());
-      const parts = to12HourParts(nextSlot);
+      const now = new Date();
+      const rounded = roundUpToNextHalfHour(now);
 
-      setHour(parts.hour);
-      setMinute(parts.minute);
-      setAmpm(parts.ampm);
+      const roundedMinutes = rounded.getHours() * 60 + rounded.getMinutes();
+      const firstSlotMinutes = START_MINUTES; // 9:00 AM
+      const lastSlotMinutes = START_MINUTES + (TOTAL_SLOTS - 1) * SLOT_STEP; // 11:30 PM
+
+      // Clamp to visible slot range for today
+      if (roundedMinutes < firstSlotMinutes) {
+        setHour("9");
+        setMinute("00");
+        setAmpm("AM");
+      } else if (roundedMinutes > lastSlotMinutes) {
+        // No valid slots left today; keep a valid display selection at the last slot
+        setHour("11");
+        setMinute("30");
+        setAmpm("PM");
+      } else {
+        const parts = to12HourParts(rounded);
+        setHour(parts.hour);
+        setMinute(parts.minute);
+        setAmpm(parts.ampm);
+      }
     } else {
       setHour("9");
       setMinute("00");
       setAmpm("AM");
     }
-  }
+  };
 
   return (
     <Popover.Root open={open} onOpenChange={handleOpenChange}>
-      <Popover.Trigger asChild>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
-          disabled={disabled}
-        >
-          {reminderAt ? (
-            <>
-              <CalendarDays size={12} />
-              <span className="truncate">
-                {variant === "compact"
-                  ? format(new Date(reminderAt), "MMM d, h:mm a")
-                  : `Remind to read · ${format(
-                      new Date(reminderAt),
-                      "MMM d, h:mm a"
-                    )}`}
-              </span>
-              <div
-                role="button"
-                onClick={handleClear}
-                className="ml-0.5 rounded-full p-0.5 hover:bg-background/50"
-              >
-                <X size={10} />
-              </div>
-            </>
-          ) : (
-            <>
-              <CalendarDays size={12} />
-              <span>{variant === "compact" ? "Add reminder" : "Remind me"}</span>
-            </>
-          )}
-        </button>
-      </Popover.Trigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Popover.Trigger asChild>
+            <button
+              type="button"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors disabled:pointer-events-none disabled:opacity-50",
+                status
+                  ? statusClasses[status]
+                  : "border-border bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              )}
+              disabled={disabled}
+            >
+              {reminderAt ? (
+                <>
+                  <CalendarDays size={12} />
+                  <span className="truncate">
+                    {variant === "compact"
+                      ? format(new Date(reminderAt), "MMM d, h:mm a")
+                      : `Remind to read · ${format(new Date(reminderAt), "MMM d, h:mm a")}`}
+                  </span>
+                  <div
+                    role="button"
+                    onClick={handleClear}
+                    className="ml-0.5 rounded-full p-0.5 hover:bg-background/50"
+                  >
+                    <X size={10} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <CalendarDays size={12} />
+                  <span>{variant === "compact" ? "Add reminder" : "Remind me"}</span>
+                </>
+              )}
+            </button>
+          </Popover.Trigger>
+        </TooltipTrigger>
+
+        {status && !disabled && (
+          <TooltipContent side="top" align="center">
+            {statusTooltip[status]}
+          </TooltipContent>
+        )}
+      </Tooltip>
 
       <Popover.Portal>
         <Popover.Content

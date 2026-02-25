@@ -148,6 +148,20 @@ export const deleteBookmark = mutation({
     if (!doc) throw new ConvexError("Bookmark not found");
     if (doc.userId !== userId) throw new ConvexError("Not authorized");
 
+    // Cancel any pending reminder scheduled job before deleting.
+    // Failure to cancel must NOT block the delete (job may have already run or been canceled).
+    if (doc.reminderScheduledId) {
+      try {
+        await ctx.scheduler.cancel(doc.reminderScheduledId);
+      } catch (e) {
+        console.log(
+          "deleteBookmark: could not cancel scheduled reminder job (may have already run or been canceled)",
+          args.bookmarkId,
+          e
+        );
+      }
+    }
+
     await ctx.db.delete(args.bookmarkId);
   },
 });

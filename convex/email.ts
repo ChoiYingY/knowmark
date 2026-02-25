@@ -244,7 +244,7 @@ export const cancelScheduledEmail = mutation({
     await ctx.db.patch(args.bookmarkId, {
       reminderStatus: "canceled",
       reminderScheduledId: undefined,
-      reminderAt: undefined,
+      reminderAt: null,
       updatedAt: Date.now(),
     });
     return { ok: true };

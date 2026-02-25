@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { AlertTriangle, Sparkles, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ReminderPopover } from "@/components/ui/ReminderPopover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface LinkPreviewCardProps {
   // Loading mode
@@ -37,6 +39,17 @@ export function LinkPreviewCard({
   showReminder,
   showSummary,
 }: LinkPreviewCardProps) {
+  const [defaultReminderEmail, setDefaultReminderEmail] = useState("");
+  const canScheduleReminder = defaultReminderEmail.trim().length > 0;
+
+  useEffect(() => {
+    try {
+      setDefaultReminderEmail(localStorage.getItem("defaultReminderEmail") ?? "");
+    } catch {
+      setDefaultReminderEmail("");
+    }
+  }, []);
+
   if (mode === "loading") {
     return (
       <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
@@ -81,7 +94,7 @@ export function LinkPreviewCard({
           <div className="mb-2 flex items-center gap-2 rounded-md bg-yellow-50 p-2 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span className="text-xs font-medium">
-              Already in your library — reminder kept.
+              Already in your library - reminder kept.
             </span>
           </div>
         )}
@@ -115,14 +128,32 @@ export function LinkPreviewCard({
           )}
 
           {showReminder && onReminderChange && (
-            <div className="flex items-center">
-              <ReminderPopover
-                reminderAt={reminderAt ?? null}
-                onChange={onReminderChange}
-                disabled={isSaving}
-                variant="detailed"
-              />
-            </div>
+            <>
+              {!isSaving && !canScheduleReminder ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex cursor-not-allowed">
+                      <ReminderPopover
+                        reminderAt={reminderAt ?? null}
+                        onChange={onReminderChange}
+                        disabled
+                        variant="detailed"
+                      />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="start">
+                    Please setup a reminder email in Dashboard first
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <ReminderPopover
+                  reminderAt={reminderAt ?? null}
+                  onChange={onReminderChange}
+                  disabled={isSaving}
+                  variant="detailed"
+                />
+              )}
+            </>
           )}
         </div>
       </div>

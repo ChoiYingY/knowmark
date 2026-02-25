@@ -9,7 +9,7 @@ import {
   isAfter,
   isValid,
 } from "date-fns";
-import { ArrowRight, BookOpen, Clock, LayoutGrid, List } from "lucide-react";
+import { ArrowRight, BookOpen, Clock, LayoutGrid, List, Mail } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { listBookmarksQuery, listBookmarksWithRemindersQuery } from "@/services/bookmarkService";
 import { BOOKMARK_CATEGORIES } from "@/types/bookmark";
+import { Input } from "@/components/ui/input";
 
 type BookmarkLike = {
   _id: unknown;
@@ -145,6 +146,39 @@ export default function Dashboard() {
 
   const navigate = useNavigate();
   const [lowEnergyMode, setLowEnergyMode] = useState(false);
+  const [savedEmail, setSavedEmail] = useState<string>(
+    () => localStorage.getItem("defaultReminderEmail") ?? ""
+  );
+  const [editingEmail, setEditingEmail] = useState<string>("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const handleSaveEmail = () => {
+    const trimmed = editingEmail.trim();
+    if (!EMAIL_REGEX.test(trimmed)) {
+      setEmailError("Please enter a valid email address.");
+      return;
+    }
+    localStorage.setItem("defaultReminderEmail", trimmed);
+    setSavedEmail(trimmed);
+    setIsEditing(false);
+    setEditingEmail("");
+    setEmailError(null);
+  };
+
+  const handleEditEmail = () => {
+    setEditingEmail(savedEmail);
+    setEmailError(null);
+    setIsEditing(true);
+  };
+
+  const handleCancelEmail = () => {
+    setEditingEmail(savedEmail);
+    setEmailError(null);
+    setIsEditing(false);
+  };
 
   const canRunQueries = isAuthenticated && !authLoading;
 
@@ -222,33 +256,33 @@ export default function Dashboard() {
   const sortByReminderAsc = (a: FocusItem, b: FocusItem) =>
     a.reminderDate.getTime() - b.reminderDate.getTime();
 
-  dueToday.sort(sortByReminderAsc);
-  overdue.sort(sortByReminderAsc);
-  thisWeek.sort(sortByReminderAsc);
-  later.sort(sortByReminderAsc);
+    dueToday.sort(sortByReminderAsc);
+    overdue.sort(sortByReminderAsc);
+    thisWeek.sort(sortByReminderAsc);
+    later.sort(sortByReminderAsc);
 
-  let focusNowItems: FocusItem[] = [...dueToday, ...overdue, ...thisWeek].slice(0, 3);
-  if (focusNowItems.length === 0) {
-    focusNowItems = later.slice(0, 3);
-  }
+    let focusNowItems: FocusItem[] = [...dueToday, ...overdue, ...thisWeek].slice(0, 3);
+    if (focusNowItems.length === 0) {
+      focusNowItems = later.slice(0, 3);
+    }
 
-  const visibleFocusItems = lowEnergyMode ? focusNowItems.slice(0, 1) : focusNowItems;
-  const primaryFocusItem = visibleFocusItems[0];
+    const visibleFocusItems = lowEnergyMode ? focusNowItems.slice(0, 1) : focusNowItems;
+    const primaryFocusItem = visibleFocusItems[0];
 
-  const renderReasonBadge = (reason: FocusReason) => {
-    if (reason === "Overdue") {
+    const renderReasonBadge = (reason: FocusReason) => {
+      if (reason === "Overdue") {
+        return (
+          <Badge variant="secondary" className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5">
+            {reason}
+          </Badge>
+        );
+      }
       return (
-        <Badge variant="secondary" className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5">
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
           {reason}
         </Badge>
       );
-    }
-    return (
-      <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
-        {reason}
-      </Badge>
-    );
-  };
+    };
 
   const openBookmark = (url?: string | null) => {
     if (!url) return;
@@ -278,33 +312,35 @@ export default function Dashboard() {
                   </CardDescription>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        className="cursor-help border-b border-muted-foreground/30 hover:border-muted-foreground/60 hover:text-foreground transition-colors"
-                        onClick={(e) => e.preventDefault()}
+                {visibleFocusItems.length > 0 && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="cursor-help border-b border-muted-foreground/30 hover:border-muted-foreground/60 hover:text-foreground transition-colors"
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          Low-energy mode
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="top"
+                        align="center"
+                        sideOffset={8}
+                        className="max-w-[180px] text-xs leading-snug"
                       >
-                        Low-energy mode
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="top"
-                      align="center"
-                      sideOffset={8}
-                      className="max-w-[180px] text-xs leading-snug"
-                    >
-                      Show just one item in Focus Now to reduce overwhelm.
-                    </TooltipContent>
-                  </Tooltip>
+                        Show just one item in Focus Now to reduce overwhelm.
+                      </TooltipContent>
+                    </Tooltip>
 
-                  <Switch
-                    checked={lowEnergyMode}
-                    onCheckedChange={setLowEnergyMode}
-                    aria-label="Low-energy mode"
-                  />
-                </div>
+                    <Switch
+                      checked={lowEnergyMode}
+                      onCheckedChange={setLowEnergyMode}
+                      aria-label="Low-energy mode"
+                    />
+                  </div>
+                )}
               </div>
             </CardHeader>
 
@@ -406,19 +442,107 @@ export default function Dashboard() {
                     </>
                   )}
                 </div>
+              ) : !savedEmail ? (
+                <div className="space-y-3">
+                  <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      <span>Set a reminder email</span>
+                    </div>
+                    <p className="text-xs">
+                      Add your email to receive reminder notifications.
+                    </p>
+                    <div className="flex w-full items-center gap-2">
+                      <Input
+                        type="email"
+                        placeholder="you@example.com"
+                        className="h-7 text-xs"
+                        value={editingEmail}
+                        onChange={(e) => setEditingEmail(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleSaveEmail()}
+                      />
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs shrink-0"
+                        onClick={handleSaveEmail}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                    {emailError && (
+                      <p className="text-xs text-destructive mt-1">{emailError}</p>
+                    )}
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-3">
+                  <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    {isEditing ? (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4" />
+                          <span>Update reminder email</span>
+                        </div>
+                        <div className="flex w-full items-center gap-2">
+                          <Input
+                            type="email"
+                            className="h-7 text-xs"
+                            value={editingEmail}
+                            onChange={(e) => setEditingEmail(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleSaveEmail()}
+                          />
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs shrink-0"
+                            onClick={handleSaveEmail}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs shrink-0"
+                            onClick={handleCancelEmail}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                        {emailError && (
+                          <p className="mt-1 text-xs text-destructive">{emailError}</p>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex w-full items-center gap-3">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <Mail className="h-4 w-4 shrink-0" />
+                          <span className="shrink-0 text-muted-foreground">Reminder email:</span>
+                          <span className="min-w-0 truncate font-medium text-foreground">
+                            {savedEmail}
+                          </span>
+                        </div>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-auto h-auto shrink-0 p-0 text-xs text-muted-foreground hover:text-foreground"
+                          onClick={handleEditEmail}
+                        >
+                          Edit
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <BookOpen className="h-4 w-4" />
                       <span>No reminders yet.</span>
                     </div>
-                   <p className="text-xs">
+                    <p className="text-xs">
                       {hasNoBookmarks
                         ? "Add a link to get started, then set a reminder to build your Focus to-read list."
                         : "Add reminders in your Library to build a Focus to-read list."}
                     </p>
-
                     <Button
                       variant="link"
                       className="h-auto p-0 text-xs"
