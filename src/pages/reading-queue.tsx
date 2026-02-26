@@ -6,33 +6,16 @@ import { Clock } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { listBookmarksWithRemindersQuery } from "@/services/bookmarkService";
 import { CATEGORY_STYLES, NEUTRAL_CATEGORY_STYLE } from "@/types/bookmark";
-
-type TldrEntry = { status: "idle" | "loading" | "ready" | "error"; text?: string };
 
 export default function ReadingQueuePage() {
   const navigate = useNavigate();
   const bookmarks = useQuery(listBookmarksWithRemindersQuery);
   const [showAllOverdue, setShowAllOverdue] = useState(false);
-  const [tldrState, setTldrState] = useState<Record<string, TldrEntry>>({});
   
   const now = Date.now();
   const OVERDUE_PREVIEW_LIMIT = 3;
-
-  const handleTldrClick = (id: string) => {
-    setTldrState(prev => ({ ...prev, [id]: { status: "loading" } }));
-    setTimeout(() => {
-      setTldrState(prev => ({
-        ...prev,
-        [id]: {
-          status: "ready",
-          text: "Quick recap: This link is about a topic you saved for later. (Backend will fill real content.)"
-        }
-      }));
-    }, 700);
-  };
   
   if (bookmarks === undefined) {
     return (
@@ -115,96 +98,54 @@ export default function ReadingQueuePage() {
     const isCalendarToday = new Date().toDateString() === reminderDate.toDateString();
     const showSummary = opts?.showSummary ?? true;
 
-    const tldr = tldrState[b._id] ?? { status: "idle" as const };
-
     let reminderEl;
 
     if (isOverdue) {
-      reminderEl = (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium">Overdue</span>
-          <span className="text-xs text-muted-foreground">{format(reminderDate, "h:mm a")}</span>
-        </div>
-      );
+       reminderEl = (
+         <div className="flex items-center gap-2">
+           <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium">Overdue</span>
+           <span className="text-xs text-muted-foreground">{format(reminderDate, "h:mm a")}</span>
+         </div>
+       );
     } else if (isCalendarToday) {
-      reminderEl = <span className="text-xs text-muted-foreground">{format(reminderDate, "h:mm a")}</span>;
+       reminderEl = <span className="text-xs text-muted-foreground">{format(reminderDate, "h:mm a")}</span>;
     } else {
-      reminderEl = <span className="text-xs text-muted-foreground">{format(reminderDate, "MMM d '·' h:mm a")}</span>;
+       // Upcoming or Later
+       reminderEl = <span className="text-xs text-muted-foreground">{format(reminderDate, "MMM d '·' h:mm a")}</span>;
     }
 
     return (
-      <div key={b._id} className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 p-3 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors">
-        <div className="space-y-1.5 min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <div className="min-w-0 flex-1">
-              <a
-                href={b.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={b.url ?? ""}
-                className="font-medium text-foreground hover:underline line-clamp-1"
-              >
-                {b.title}
-              </a>
-            </div>
-            {b.category && (
-              <span className={`rounded-full border px-2 py-0.5 text-[10px] whitespace-nowrap ${CATEGORY_STYLES[b.category] ?? NEUTRAL_CATEGORY_STYLE}`}>
-                {b.category}
-              </span>
-            )}
-          </div>
-          {showSummary && b.aiSummary && (
-            <p className="text-xs text-muted-foreground line-clamp-1">{b.aiSummary}</p>
-          )}
-
-          {/* TL;DR recap — only for overdue items */}
-          {isOverdue && (
-            <div className="pt-1">
-              {tldr.status === "idle" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 px-2 text-[11px] text-muted-foreground"
-                  onClick={() => handleTldrClick(b._id)}
-                >
-                  TL;DR recap
-                </Button>
-              )}
-
-              {tldr.status === "loading" && (
-                <div className="space-y-1.5 mt-1">
-                  <Skeleton className="h-3 w-3/4 rounded" />
-                  <Skeleton className="h-3 w-1/2 rounded" />
-                </div>
-              )}
-
-              {tldr.status === "ready" && tldr.text && (
-                <div className="mt-1 rounded border border-border bg-muted/40 px-2.5 py-1.5">
-                  <p className="text-xs text-muted-foreground leading-relaxed">{tldr.text}</p>
-                </div>
-              )}
-
-              {tldr.status === "error" && (
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="text-xs text-destructive">Couldn't load recap.</span>
-                  <button
-                    className="text-xs text-muted-foreground underline hover:text-foreground"
-                    onClick={() => handleTldrClick(b._id)}
+       <div key={b._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors">
+          <div className="space-y-1.5 min-w-0">
+             <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <a
+                    href={b.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={b.url ?? ""}
+                    className="font-medium text-foreground hover:underline line-clamp-1"
                   >
-                    Retry
-                  </button>
+                    {b.title}
+                  </a>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="flex-shrink-0 sm:pt-0.5">
-          {reminderEl}
-        </div>
-      </div>
+                {b.category && (
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] whitespace-nowrap ${CATEGORY_STYLES[b.category] ?? NEUTRAL_CATEGORY_STYLE}`}>
+                    {b.category}
+                  </span>
+                )}
+             </div>
+             {showSummary && b.aiSummary && (
+               <p className="text-xs text-muted-foreground line-clamp-1">{b.aiSummary}</p>
+             )}
+          </div>
+          
+          <div className="flex-shrink-0">
+             {reminderEl}
+          </div>
+       </div>
     );
-  };
+  }
 
   return (
     <AppShell>
