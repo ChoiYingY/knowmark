@@ -14,6 +14,7 @@ import type * as bookmarks from "../bookmarks.js";
 import type * as email from "../email.js";
 import type * as http from "../http.js";
 import type * as openaiEnrichmentActions from "../openaiEnrichmentActions.js";
+import type * as tldr from "../tldr.js";
 
 import type {
   ApiFromModules,
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   email: typeof email;
   http: typeof http;
   openaiEnrichmentActions: typeof openaiEnrichmentActions;
+  tldr: typeof tldr;
 }>;
 
 /**
