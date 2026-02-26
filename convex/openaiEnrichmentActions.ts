@@ -51,20 +51,51 @@ export const getPreviewEnrichment = action({
     }
 
     try {
-      const prompt = `You are a bookmark enrichment assistant. Given a URL and title, return a JSON object with exactly five fields:
-- "aiSummary": one sentence (max 20 words) describing what this bookmark is about
-- "whyUseful": one sentence (max 20 words) explaining why it may be worth revisiting later
-- "bestTime": when to revisit — MUST be exactly one of: today, this_week, weekend, later
-- "effort": reading effort — MUST be exactly one of: short, medium, long
-- "category": MUST be exactly one of: ${ALLOWED_CATEGORIES.join(", ")}
+      const prompt = `You are a bookmark enrichment assistant for an ADHD-friendly reading queue.
 
-Title: ${args.title}
-URL: ${args.url}
+      You ONLY know the Title and URL below. Do NOT browse the web. Do NOT invent specifics that are not strongly implied by the title/URL.
+      Your job is to output ONE JSON object with EXACTLY these five fields and NOTHING else:
 
-Respond with ONLY valid JSON. No markdown. No explanation. No extra fields.`
+      1) "aiSummary" (max 20 words)
+      - Objective description of what the link is (topic + format if obvious: article, docs, video, repo, paper, tool).
+      - MUST NOT include personal value language (no “useful”, “worth”, “helpful”, “you should”, etc.).
+
+      2) "whyUseful" (max 20 words)
+      - Practical future use-case: when the user would revisit and what outcome they'll get.
+      - MUST be different from aiSummary (no rephrasing). Focus on “when/why to use it”, not “what it is”.
+      - Start with “Revisit when…” OR “Use this to…” (pick one).
+
+      3) "bestTime" (choose EXACTLY ONE token)
+      - today: time-sensitive, urgent action/decision, deadline/event/announcement implied.
+      - this_week: actionable task to do soon (setup, implementation, applying advice) but not urgent today.
+      - weekend: deep focus / longform / learning-heavy (papers, long essays, courses, book chapters).
+      - later: evergreen reference, inspiration, “maybe someday”, or uncertain urgency.
+      MUST be exactly one of: today, this_week, weekend, later
+
+      4) "effort" (choose EXACTLY ONE token)
+      Estimate time-to-consume:
+      - short: <= 5 minutes (quick reference, short post, single page, short clip)
+      - medium: 5-15 minutes (typical article, docs section, tutorial page)
+      - long: > 20 minutes (paper, long tutorial, video/podcast, multi-page docs)
+      MUST be exactly one of: short, medium, long
+
+      5) "category"
+      Choose the single best category match based on title/URL intent.
+      MUST be exactly one of: ${ALLOWED_CATEGORIES.map((c) => `"${c}"`).join(", ")}
+      If unclear, pick the most general/neutral option in the list (e.g., "Uncategorized" if present).
+
+      Title: ${args.title}
+      URL: ${args.url}
+
+      Hard requirements:
+      - Respond with ONLY valid JSON (double quotes, no trailing commas).
+      - No markdown. No explanation. No extra keys.
+      - If unsure about urgency, set bestTime="later". If unsure about effort, set effort="medium".
+
+      Respond with ONLY valid JSON. No markdown. No explanation. No extra fields.`;
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       let response: Response;
       try {
@@ -79,6 +110,26 @@ Respond with ONLY valid JSON. No markdown. No explanation. No extra fields.`
             messages: [{ role: "user", content: prompt }],
             temperature: 0.1,
             max_tokens: 256,
+
+            response_format: {
+              type: "json_schema",
+              json_schema: {
+                name: "bookmark_enrichment",
+                strict: true,
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    aiSummary: { type: "string" },
+                    whyUseful: { type: "string" },
+                    bestTime: { type: "string", enum: [...ALLOWED_BEST_TIMES] },
+                    effort: { type: "string", enum: [...ALLOWED_EFFORTS] },
+                    category: { type: "string", enum: [...ALLOWED_CATEGORIES] },
+                  },
+                  required: ["aiSummary", "whyUseful", "bestTime", "effort", "category"],
+                },
+              },
+            },
           }),
           signal: controller.signal,
         });
