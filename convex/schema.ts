@@ -20,9 +20,6 @@ const schema = defineSchema({
     whyUseful: v.optional(v.string()),
     bestTime: v.optional(v.union(v.literal("today"), v.literal("this_week"), v.literal("weekend"), v.literal("later"))),
     effort: v.optional(v.union(v.literal("short"), v.literal("medium"), v.literal("long"))),
-    tldrText: v.optional(v.string()),
-    tldrUpdatedAt: v.optional(v.number()),
-    tldrSource: v.optional(v.union(v.literal("snapshot"), v.literal("content"))),
   })
     .index("by_userId", ["userId"])
     .index("by_userId_normalizedUrl", ["userId", "normalizedUrl"]),
